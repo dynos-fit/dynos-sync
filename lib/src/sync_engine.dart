@@ -506,7 +506,8 @@ class SyncEngine {
   /// where one user's unsynced data might be pushed under the next user's session.
   Future<void> logout() async {
     await queue.clearAll();
-    await local.clearAll(tables); // 🛡️ Category 1: Purge local identity context
+    await local
+        .clearAll(tables); // 🛡️ Category 1: Purge local identity context
     for (final table in tables) {
       await timestamps.set(
         table,

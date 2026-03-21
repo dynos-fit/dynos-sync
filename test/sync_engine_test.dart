@@ -2,7 +2,8 @@ import 'package:test/test.dart';
 import 'package:dynos_sync/dynos_sync.dart';
 
 class MockLocalStore implements LocalStore {
-  @override Future<void> clearAll(List<String> t) async {}
+  @override
+  Future<void> clearAll(List<String> t) async {}
   final data = <String, Map<String, dynamic>>{};
 
   @override

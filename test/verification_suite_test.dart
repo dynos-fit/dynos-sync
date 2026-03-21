@@ -102,7 +102,8 @@ void main() {
 // ─── Mock HELPERS ────────────────────────────────────────────────────────────
 
 class MockLocalStore implements LocalStore {
-  @override Future<void> clearAll(List<String> t) async {}
+  @override
+  Future<void> clearAll(List<String> t) async {}
   @override
   Future<void> upsert(String t, String id, Map<String, dynamic> d) async {}
   @override
@@ -110,7 +111,8 @@ class MockLocalStore implements LocalStore {
 }
 
 class FailingLocalStore implements LocalStore {
-  @override Future<void> clearAll(List<String> t) async {}
+  @override
+  Future<void> clearAll(List<String> t) async {}
   @override
   Future<void> upsert(String t, String id, Map<String, dynamic> d) async {
     throw Exception('Local Database Write Failure');

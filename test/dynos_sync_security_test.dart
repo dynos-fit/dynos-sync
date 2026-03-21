@@ -16,14 +16,14 @@ class MockTimestampStore extends Mock implements TimestampStore {}
 
 class TrackingLocalStore implements LocalStore {
   final Map<String, dynamic> data = {};
-  
+
   @override
   Future<void> upsert(String t, String id, Map<String, dynamic> d) async =>
       data['$t:$id'] = d;
-      
+
   @override
   Future<void> delete(String t, String id) async => data.remove('$t:$id');
-  
+
   @override
   Future<void> clearAll(List<String> tables) async => data.clear();
 }
@@ -127,10 +127,7 @@ void main() {
         config: const SyncConfig(sensitiveFields: ['token']),
       );
 
-      final attack = {
-        'title': 'My Token Is Secret',
-        'token': 'abc-def-123'
-      };
+      final attack = {'title': 'My Token Is Secret', 'token': 'abc-def-123'};
       await engine.write('tasks', '1', attack);
 
       final captured =
@@ -146,7 +143,7 @@ void main() {
         () async {
       final List<String> errorLogs = [];
       final remote = getStubbedRemote();
-      
+
       when(() => remote.pushBatch(any())).thenThrow(Exception('Batch Error'));
       when(() => remote.push(any(), any(), any(), any()))
           .thenThrow(Exception('Simulated Failure'));
@@ -163,7 +160,7 @@ void main() {
 
       await engine.write('users', '1', {'email': 'secret@vault.com'});
       await engine.drain();
-      
+
       for (final log in errorLogs) {
         expect(log, isNot(contains('secret@vault.com')));
       }
@@ -222,7 +219,7 @@ void main() {
     test('34. Exponential Backoff: delays must double (2, 4, 8)', () async {
       final queue = InMemoryQueueStore();
       final remote = getStubbedRemote();
-      
+
       when(() => remote.pushBatch(any())).thenThrow(Exception('Net Error'));
       when(() => remote.push(any(), any(), any(), any()))
           .thenThrow(Exception('Net Error'));
@@ -253,7 +250,8 @@ void main() {
       expect(e2.retryCount, 2);
 
       expect(e2.nextRetryAt!.isAfter(e1.nextRetryAt!), isTrue,
-          reason: 'Retry 2 (${e2.nextRetryAt}) must be later than Retry 1 (${e1.nextRetryAt})');
+          reason:
+              'Retry 2 (${e2.nextRetryAt}) must be later than Retry 1 (${e1.nextRetryAt})');
     });
   });
 
@@ -261,8 +259,9 @@ void main() {
     test('35. App Kill Resilience: Mid-sync termination survival', () async {
       final queue = InMemoryQueueStore();
       final remote = getStubbedRemote();
-      
-      when(() => remote.push(any(), any(), any(), any())).thenThrow(Exception());
+
+      when(() => remote.push(any(), any(), any(), any()))
+          .thenThrow(Exception());
 
       final engine = SyncEngine(
         local: getStubbedLocal(),
@@ -329,7 +328,8 @@ class InMemoryQueueStore implements QueueStore {
   @override
   Future<List<SyncEntry>> getPendingEntries(String t, String i) async {
     final list = _queue
-        .where((e) => e.table == t && e.recordId == i && !_synced.contains(e.id))
+        .where(
+            (e) => e.table == t && e.recordId == i && !_synced.contains(e.id))
         .toList();
     return list
         .map((e) => e.copyWith(
@@ -352,7 +352,8 @@ class InMemoryQueueStore implements QueueStore {
   }
 
   @override
-  Future<void> purgeSynced({Duration retention = const Duration(days: 30)}) async {}
+  Future<void> purgeSynced(
+      {Duration retention = const Duration(days: 30)}) async {}
   @override
   Future<void> clearAll() async {
     _queue.clear();
