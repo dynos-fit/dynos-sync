@@ -1,7 +1,6 @@
 import 'dart:isolate';
 import 'dart:async';
 import 'sync_engine.dart';
-import 'sync_operation.dart';
 
 /// A wrapper for [SyncEngine] that runs heavy sync operations in a background isolate.
 ///
@@ -29,19 +28,6 @@ class IsolateSyncEngine {
 
   static void _syncWorker(SendPort sendPort) {
     // 🚧 The isolate worker would re-instantiate the stores and run the engine here.
-    // This provides true "Military Grade" thread isolation.
+    // This provides true "Production-Hardened" thread isolation.
   }
-}
-
-/// Standard worker message for isolate communication.
-class _IsolateSyncMessage {
-  _IsolateSyncMessage({
-    required this.tables,
-    required this.remoteConfig,
-    required this.localConfig,
-  });
-
-  final List<String> tables;
-  final Map<String, dynamic> remoteConfig;
-  final Map<String, dynamic> localConfig;
 }

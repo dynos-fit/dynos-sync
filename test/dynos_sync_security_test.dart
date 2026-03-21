@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:test/test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:dynos_sync/dynos_sync.dart';
@@ -28,11 +27,12 @@ class TrackingLocalStore implements LocalStore {
 // A high-speed mock for bulk throughput testing
 class ZeroLatancyRemote extends Mock implements RemoteStore {
   @override
-  Future<void> push(any, any, any, any) async {}
+  Future<void> push(dynamic _1, dynamic _2, dynamic _3, dynamic _4) async {}
   @override
-  Future<void> pushBatch(any) async {}
+  Future<void> pushBatch(dynamic _1) async {}
   @override
-  Future<List<Map<String, dynamic>>> pullSince(any, any) async => [];
+  Future<List<Map<String, dynamic>>> pullSince(dynamic _1, dynamic _2) async =>
+      [];
   @override
   Future<Map<String, DateTime>> getRemoteTimestamps() async => {};
 }
