@@ -17,9 +17,14 @@ const kSyncQueueCreateSql = '''
     payload TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     synced_at INTEGER,
-    retry_count INTEGER NOT NULL DEFAULT 0
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    next_retry_at INTEGER
   )
 ''';
+
+/// SQL to add the next_retry_at column to an existing sync queue table.
+const kSyncQueueAddNextRetryAtSql =
+    'ALTER TABLE dynos_sync_queue ADD COLUMN next_retry_at INTEGER';
 
 /// Drift table definition for the sync queue.
 ///
@@ -40,6 +45,7 @@ class DynosSyncQueueTable extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get syncedAt => dateTime().nullable()();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
+  IntColumn get nextRetryAt => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

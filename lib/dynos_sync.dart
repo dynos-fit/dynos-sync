@@ -20,3 +20,6 @@ export 'src/sync_operation.dart';
 export 'src/sync_config.dart';
 export 'src/timestamp_store.dart';
 export 'src/isolate_sync_engine.dart';
+export 'src/sync_exceptions.dart';
+export 'src/conflict_strategy.dart';
+export 'src/sync_event.dart';

@@ -15,8 +15,8 @@ class DriftQueueStore implements QueueStore {
   @override
   Future<void> enqueue(SyncEntry entry) async {
     await _db.customStatement(
-      'INSERT INTO dynos_sync_queue (id, table_name, record_id, operation, payload, created_at, retry_count) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO dynos_sync_queue (id, table_name, record_id, operation, payload, created_at, retry_count, next_retry_at) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         entry.id,
         entry.table,
@@ -25,18 +25,31 @@ class DriftQueueStore implements QueueStore {
         jsonEncode(entry.payload),
         entry.createdAt.millisecondsSinceEpoch,
         entry.retryCount,
+        entry.nextRetryAt?.millisecondsSinceEpoch,
       ],
     );
   }
 
   @override
-  Future<List<SyncEntry>> getPending({int limit = 50}) async {
-    final rows = await _db.customSelect(
-      'SELECT * FROM dynos_sync_queue WHERE synced_at IS NULL '
-      'ORDER BY created_at ASC LIMIT ?',
-      variables: [Variable.withInt(limit)],
-    ).get();
+  Future<List<SyncEntry>> getPending({int limit = 50, DateTime? now}) async {
+    final String sql;
+    final List<Variable> variables;
 
+    if (now != null) {
+      sql = 'SELECT * FROM dynos_sync_queue WHERE synced_at IS NULL '
+          'AND (next_retry_at IS NULL OR next_retry_at <= ?) '
+          'ORDER BY created_at ASC LIMIT ?';
+      variables = [
+        Variable.withInt(now.millisecondsSinceEpoch),
+        Variable.withInt(limit),
+      ];
+    } else {
+      sql = 'SELECT * FROM dynos_sync_queue WHERE synced_at IS NULL '
+          'ORDER BY created_at ASC LIMIT ?';
+      variables = [Variable.withInt(limit)];
+    }
+
+    final rows = await _db.customSelect(sql, variables: variables).get();
     return rows.map(_mapRow).toList();
   }
 
@@ -60,9 +73,21 @@ class DriftQueueStore implements QueueStore {
   }
 
   @override
+  Future<List<SyncEntry>> getPendingEntries(
+      String table, String recordId) async {
+    final rows = await _db.customSelect(
+      'SELECT * FROM dynos_sync_queue '
+      'WHERE table_name = ? AND record_id = ? AND synced_at IS NULL '
+      'ORDER BY created_at DESC',
+      variables: [Variable.withString(table), Variable.withString(recordId)],
+    ).get();
+    return rows.map(_mapRow).toList();
+  }
+
+  @override
   Future<void> markSynced(String id) async {
     await _db.customStatement(
-      'UPDATE dynos_sync_queue SET synced_at = ? WHERE id = ?',
+      'UPDATE dynos_sync_queue SET synced_at = ? WHERE id = ? AND synced_at IS NULL',
       [DateTime.now().toUtc().millisecondsSinceEpoch, id],
     );
   }
@@ -76,6 +101,14 @@ class DriftQueueStore implements QueueStore {
   }
 
   @override
+  Future<void> setNextRetryAt(String id, DateTime nextRetryAt) async {
+    await _db.customStatement(
+      'UPDATE dynos_sync_queue SET next_retry_at = ? WHERE id = ?',
+      [nextRetryAt.millisecondsSinceEpoch, id],
+    );
+  }
+
+  @override
   Future<void> deleteEntry(String id) async {
     await _db.customStatement(
       'DELETE FROM dynos_sync_queue WHERE id = ?',
@@ -84,8 +117,10 @@ class DriftQueueStore implements QueueStore {
   }
 
   @override
-  Future<void> purgeSynced({Duration retention = const Duration(days: 30)}) async {
-    final cutoff = DateTime.now().toUtc().subtract(retention).millisecondsSinceEpoch;
+  Future<void> purgeSynced(
+      {Duration retention = const Duration(days: 30)}) async {
+    final cutoff =
+        DateTime.now().toUtc().subtract(retention).millisecondsSinceEpoch;
     await _db.customStatement(
       'DELETE FROM dynos_sync_queue WHERE synced_at IS NOT NULL AND synced_at < ?',
       [cutoff],
@@ -103,7 +138,8 @@ class DriftQueueStore implements QueueStore {
       table: row.read<String>('table_name'),
       recordId: row.read<String>('record_id'),
       operation: SyncOperation.values.byName(row.read<String>('operation')),
-      payload: jsonDecode(row.read<String>('payload')) as Map<String, dynamic>,
+      payload:
+          jsonDecode(row.read<String>('payload')) as Map<String, dynamic>,
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         row.read<int>('created_at'),
         isUtc: true,
@@ -115,6 +151,12 @@ class DriftQueueStore implements QueueStore {
             )
           : null,
       retryCount: row.read<int>('retry_count'),
+      nextRetryAt: row.readNullable<int>('next_retry_at') != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              row.read<int>('next_retry_at'),
+              isUtc: true,
+            )
+          : null,
     );
   }
 }

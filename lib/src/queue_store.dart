@@ -10,7 +10,8 @@ abstract class QueueStore {
   Future<void> enqueue(SyncEntry entry);
 
   /// Get pending (un-synced) entries, oldest first.
-  Future<List<SyncEntry>> getPending({int limit = 50});
+  /// If [now] is provided, only returns entries where nextRetryAt is null or <= now.
+  Future<List<SyncEntry>> getPending({int limit = 50, DateTime? now});
 
   /// Check if a specific record has a pending sync entry.
   Future<bool> hasPending(String table, String id);
@@ -19,11 +20,18 @@ abstract class QueueStore {
   /// Useful for batching checks during pulls to avoid N+1 query bottlenecks.
   Future<Set<String>> getPendingIds(String table);
 
+  /// Get all pending entries for a specific table and record ID.
+  /// Used during conflict resolution to access the local pending payload.
+  Future<List<SyncEntry>> getPendingEntries(String table, String recordId);
+
   /// Mark an entry as successfully synced.
   Future<void> markSynced(String id);
 
   /// Increment the retry count for a failed entry.
   Future<void> incrementRetry(String id);
+
+  /// Set the next eligible retry time for backoff scheduling.
+  Future<void> setNextRetryAt(String id, DateTime nextRetryAt);
 
   /// Permanently delete an entry from the queue (e.g., dead letter / poison pill).
   Future<void> deleteEntry(String id);
