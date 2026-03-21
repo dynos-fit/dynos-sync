@@ -90,9 +90,10 @@ class SupabaseRemoteStore implements RemoteStore {
       }
 
       return result;
-    } catch (_) {
-      // sync_status table doesn't exist or query failed — pull everything
-      return {};
+    } catch (e) {
+      // Let exceptions bubble up so the SyncEngine can catch and log them,
+      // avoiding a silent fallback to full-syncs.
+      rethrow;
     }
   }
 }
