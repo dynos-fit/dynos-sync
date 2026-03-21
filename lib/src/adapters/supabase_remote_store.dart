@@ -82,7 +82,7 @@ class SupabaseRemoteStore implements RemoteStore {
       final deletes = opsMap[SyncOperation.delete];
       if (deletes != null && deletes.isNotEmpty) {
         final ids = deletes.map((e) => e.recordId).toList();
-        await client.from(tableName).delete().in_('id', ids);
+        await client.from(tableName).delete().inFilter('id', ids);
       }
     }
   }

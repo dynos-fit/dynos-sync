@@ -14,7 +14,15 @@ abstract class RemoteStore {
   );
 
   /// Push multiple records to the remote in optimized batches.
-  Future<void> pushBatch(List<SyncEntry> entries);
+  ///
+  /// The default implementation falls back to individual [push] calls.
+  /// Override in backend-specific subclasses (e.g. [SupabaseRemoteStore])
+  /// to use batch APIs for better performance.
+  Future<void> pushBatch(List<SyncEntry> entries) async {
+    for (final entry in entries) {
+      await push(entry.table, entry.recordId, entry.operation, entry.payload);
+    }
+  }
 
   /// Pull all records from [table] updated after [since].
   ///

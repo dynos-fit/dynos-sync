@@ -80,14 +80,14 @@ class SyncEngine {
     String id,
     Map<String, dynamic> data,
   ) async {
-    await local.upsert(table, id, data);
     await _enqueue(table, id, SyncOperation.upsert, data);
+    await local.upsert(table, id, data);
   }
 
   /// Delete a record locally and queue the deletion for push.
   Future<void> remove(String table, String id) async {
-    await local.delete(table, id);
     await _enqueue(table, id, SyncOperation.delete, {});
+    await local.delete(table, id);
   }
 
   /// Queue a push without writing locally.
