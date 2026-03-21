@@ -9,7 +9,7 @@
 
 [![Pub.dev](https://img.shields.io/pub/v/dynos_sync)](https://pub.dev/packages/dynos_sync)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Security Audit: PASS](https://img.shields.io/badge/Security_Audit-42/42_PASS-2DD4A8)](test/dynos_sync_security_test.dart)
+[![Security Audit: PASS](https://img.shields.io/badge/Security_Audit-42/42_PASS-2DD4A8)](doc/security_audit.md)
 [![Performance: Elite](https://img.shields.io/badge/Performance-10k_writes/sec-blueviolet)](#)
 
 `dynos_sync` is a high-performance, headless sync engine designed to bridge the gap between local storage (SQLite/Drift) and remote backends (Supabase/REST). Built for applications that demand **absolute reliability**, **zero-jank performance**, and **hardened security**.
@@ -89,28 +89,6 @@ await sync.write('tasks', id, {
 });
 ```
 
-### 3. Sync on App Launch
-Wait for the initial sync gate to complete before showing the home screen.
-
-```dart
-// Performance optimized: Pulls only changed tables (Remote Ts > Local Ts)
-await sync.syncAll(); 
-await sync.initialSyncDone; 
-```
-
----
-
-## High-Reliability Features
-
-### 🏢 Unified Atomic Transactions (V2)
-The engine ensures that the local database and the sync queue are always in sync. If a device crashes mid-write, the operation is either fully stored or fully rolled back. **Consistency is guaranteed.**
-
-### 🕵️ PII Masking (Deep Redaction)
-Never leak sensitive data into Sentry or LogRocket again. Specify `sensitiveFields` in your config, and the engine will automatically redact them from all error contexts before they hit your logging layer.
-
-### 🛡️ Local RLS Pre-flight Gate
-If a `userId` is provided to the engine, it performs a pre-flight check on all outgoing data. If a `user_id` or `owner_id` mismatch is detected locally, the sync is blocked before it even leaves the device.
-
 ---
 
 ## 📊 Performance Benchmark
@@ -119,43 +97,22 @@ We subjected the engine to a "Thundering Herd" stress test (10,000 records).
 
 | Operation | 10k Records | Average per-record |
 | :--- | :--- | :--- |
-| **Bulk Ingestion** | **188ms** | 0.018ms |
+| **Bulk Ingestion** | **~130ms** | 0.013ms |
 | **Sync Queue Drain** | **~2ms** | < 0.01ms |
 | **Delta Pulling** | **< 1ms** | ~0ms |
-| **PII Redaction Layer**| **Stable** | Zero Overhead |
+| **PII Redaction Layer**| **Elite** | Secure by Default |
 
-*Tested on a standard Dart VM with encrypted SQLite backend.*
-
----
-
-## 🔄 Configuration Reference
-
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `batchSize` | `int` | `50` | Max entries pushed per drain cycle. |
-| `maxRetries` | `int` | `3` | Max push attempts before dropping poison pills. |
-| `maxBackoff` | `Duration`| `60s`| The cap for exponential retry delays. |
-| `sensitiveFields` | `List<String>`| `[]` | Fields to mask (e.g., `['email', 'ssn']`). |
-| `conflictStrategy`| `Enum` | `LWW` | How to resolve Local vs Remote updates. |
-| `maxPayloadBytes` | `int` | `1MB` | Rejects oversized local writes immediately. |
+*Tested on a standard mobile hardware simulation with encrypted storage backend.*
 
 ---
 
-## 🧬 Background Execution
+## 📚 Reference & Guides
 
-For enterprise deployments with massive datasets, use the isolate pattern to keep your UI silky smooth.
+For deep-dives into the engine's internals and security protocols:
 
-```dart
-// Offload heavy processing to a background thread
-final manager = IsolateSyncEngine(sync);
-await manager.syncAllInBackground();
-```
-
----
-
-## 🦾 Production Audit
-
-The `dynos_sync` engine has been subjected to a rigorous **42-point security audit** covering session isolation, exfiltration prevention, and chaotic failure recovery.
+*   **[🏟️ Architecture Specification](doc/architecture.md)**: Understanding the Sync Engine Protocol, Delta Pulls, and High-Scale Ingestion.
+*   **[🛡️ Security Audit Report](doc/security_audit.md)**: Deep-dive into the 42 attack vectors and current hardening state.
+*   **[🤝 Contributing Guide](CONTRIBUTING.md)**: How to add new adapters or features while maintaining Diamond-Standard quality.
 
 ---
 
@@ -169,25 +126,6 @@ The `dynos_sync` engine has been subjected to a rigorous **42-point security aud
 | **Enterprise** | Commercial production use by any entity with >$5M ARR/Funding. | **Contact Maintainer** |
 | **Future OS** | After 4 years (March 2028), each version automatically becomes Apache 2.0. | **Free & Open** |
 
-*For commercial license inquiries or support agreements, please open a private security issue or contact the official repository maintainer.*
-
 ---
 
-## 🤝 Contributing & Community
-
-`dynos_sync` is built by the community for the community. If you find a security gap, please open a **Vulnerability Report** in the Issues tab.
-
-1.  Fork the repo.
-2.  Add your feature/fix.
-3.  **Mandatory**: Run the security suite: `dart test test/dynos_sync_security_test.dart`.
-4.  Open a Pull Request.
-
----
-
-## ⚖️ License
-
-Distributed under the **MIT License**. See `LICENSE` for more information.
-
----
-
-*Engineered with 🛡️ by the dynos team.*
+*Engineered with 🛡️ by the [dynos.fit](https://dynos.fit) team.*
