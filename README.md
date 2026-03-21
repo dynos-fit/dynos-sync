@@ -1,6 +1,6 @@
 # 🛡️ dynos_sync
 
-**Military-Grade, Local-First Synchronization Engine for Dart & Flutter.**
+**High-Reliability, Production-Hardened Sync Engine for Dart & Flutter.**
 
 [![Pub.dev](https://img.shields.io/pub/v/dynos_sync)](https://pub.dev/packages/dynos_sync)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
@@ -91,7 +91,7 @@ await sync.initialSyncDone;
 
 ---
 
-## 🔱 Military-Grade Features
+## High-Reliability Features
 
 ### 🏢 Unified Atomic Transactions (V2)
 The engine ensures that the local database and the sync queue are always in sync. If a device crashes mid-write, the operation is either fully stored or fully rolled back. **Consistency is guaranteed.**
@@ -141,6 +141,12 @@ For enterprise deployments with massive datasets, use the isolate pattern to kee
 final manager = IsolateSyncEngine(sync);
 await manager.syncAllInBackground();
 ```
+
+---
+
+## 🦾 Production Audit
+
+The `dynos_sync` engine has been subjected to a rigorous **42-point security audit** covering session isolation, exfiltration prevention, and chaotic failure recovery.
 
 ---
 
