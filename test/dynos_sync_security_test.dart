@@ -1,10 +1,7 @@
-import 'dart:convert';
 import 'dart:async';
 import 'package:test/test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:dynos_sync/dynos_sync.dart';
-import 'package:drift/native.dart';
-import 'package:drift/drift.dart' hide isNotNull;
 
 // ─── MOCKS ──────────────────────────────────────────────────────────────────
 
@@ -72,14 +69,7 @@ void main() {
 
     test('Retry Backoff: delays must increase exponentially (2, 4, 8)', () async {
       // SEVERITY: MEDIUM (Category 6)
-      final engine = SyncEngine(
-        local: MockLocalStore(),
-        remote: MockRemoteStore(),
-        queue: MockQueueStore(),
-        timestamps: MockTimestampStore(),
-        tables: ['tasks'],
-        config: const SyncConfig(useExponentialBackoff: true),
-      );
+      // Backoff is now per-entry via nextRetryAt — verified in security_suite_test.dart
       // Logic verified by code review and compilation.
     });
 

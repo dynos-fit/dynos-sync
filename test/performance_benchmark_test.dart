@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:dynos_sync/dynos_sync.dart';
@@ -92,21 +91,17 @@ void main() {
     });
 
     test('PII Masking Overhead (100k Deep Clones)', () async {
-      final remote = MockRemoteStore();
-      final engine = SyncEngine(
-        local: FastInMemoryLocal(),
-        remote: remote,
-        queue: FastInMemoryQueue(),
-        timestamps: MockTimestampStore(),
-        tables: ['tasks'],
-        config: const SyncConfig(sensitiveFields: ['ssn', 'password', 'token']),
-      );
+      final config = SyncConfig(sensitiveFields: ['ssn', 'password', 'token']);
 
       final payload = {'ssn': 'HIDDEN', 'password': 'SECRET', 'token': 'TOKEN-123', 'other': 'DATA'};
-      
+
       final sw = Stopwatch()..start();
       for (var i = 0; i < 100000; i++) {
-        // Redaction logic cost
+        // Simulate redaction logic cost by cloning the map
+        final masked = Map<String, dynamic>.from(payload);
+        for (final field in config.sensitiveFields) {
+          if (masked.containsKey(field)) masked[field] = '[REDACTED]';
+        }
       }
       sw.stop();
       print('BENCHMARK: PII Masking logic overhead (100k iterations): ${sw.elapsedMilliseconds}ms');
