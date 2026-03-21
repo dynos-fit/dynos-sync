@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:dynos_sync/dynos_sync.dart';
+import '../local_store.dart';
 
 /// [LocalStore] implementation backed by a Drift database.
 ///
@@ -14,7 +14,6 @@ class DriftLocalStore implements LocalStore {
 
   @override
   Future<void> upsert(String table, String id, Map<String, dynamic> data) async {
-    // Build column list and placeholders from the data map
     final columns = data.keys.toList();
     final placeholders = List.filled(columns.length, '?').join(', ');
     final values = data.values.toList();

@@ -8,10 +8,7 @@ class DynosSyncTimestampsTable extends Table {
   @override
   String get tableName => 'dynos_sync_timestamps';
 
-  /// The table name this timestamp belongs to.
   TextColumn get tableName_ => text().named('table_name')();
-
-  /// Last successful sync time (UTC).
   DateTimeColumn get lastSyncedAt => dateTime()();
 
   @override

@@ -1,31 +1,29 @@
-import 'package:dynos_sync/dynos_sync.dart';
 import 'package:supabase/supabase.dart';
+import '../remote_store.dart';
+import '../sync_operation.dart';
 
 /// [RemoteStore] implementation using Supabase Postgrest.
 ///
 /// Pushes records via `.upsert()` / `.delete()` and pulls via
 /// `.select().gt('updated_at', since)`.
 ///
-/// ## Sync Status Table
+/// ## Smart Sync Gate
 ///
-/// For the smart sync gate to work, your Supabase project needs a
+/// For the sync gate to work, your Supabase project needs a
 /// `sync_status` table with one row per user and a `timestamptz` column
-/// per synced table (e.g., `users_at`, `tasks_at`, `notes_at`).
+/// per synced table (e.g., `users_at`, `tasks_at`).
 ///
-/// These columns should be maintained by Supabase triggers that update
-/// the timestamp whenever a row in the corresponding table changes.
-///
+/// These columns should be maintained by Supabase triggers.
 /// If you don't have a `sync_status` table, [getRemoteTimestamps] returns
 /// an empty map and all tables will be pulled on every sync.
 class SupabaseRemoteStore implements RemoteStore {
   /// Creates a Supabase remote store.
   ///
   /// - [client]: Your Supabase client instance.
-  /// - [userId]: The authenticated user's ID (used for sync_status lookup).
+  /// - [userId]: The authenticated user's ID.
   /// - [syncStatusTable]: Name of the sync status table (default: `sync_status`).
   /// - [tableTimestampKeys]: Maps table names to their `sync_status` column names.
-  ///   Example: `{'users': 'users_at', 'tasks': 'tasks_at'}`.
-  ///   Tables not in this map won't use the smart sync gate.
+  ///   Example: `{'tasks': 'tasks_at', 'notes': 'notes_at'}`.
   const SupabaseRemoteStore({
     required this.client,
     required this.userId,
@@ -36,8 +34,6 @@ class SupabaseRemoteStore implements RemoteStore {
   final SupabaseClient client;
   final String userId;
   final String syncStatusTable;
-
-  /// Maps table names to their corresponding column in [syncStatusTable].
   final Map<String, String> tableTimestampKeys;
 
   @override
@@ -91,7 +87,6 @@ class SupabaseRemoteStore implements RemoteStore {
 
       return result;
     } catch (_) {
-      // sync_status table doesn't exist or query failed — pull everything
       return {};
     }
   }

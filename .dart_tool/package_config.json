@@ -2,22 +2,10 @@
   "configVersion": 2,
   "packages": [
     {
-      "name": "_fe_analyzer_shared",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/_fe_analyzer_shared-96.0.0",
+      "name": "adaptive_number",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/adaptive_number-1.0.0",
       "packageUri": "lib/",
-      "languageVersion": "3.9"
-    },
-    {
-      "name": "analyzer",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/analyzer-10.2.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.9"
-    },
-    {
-      "name": "args",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/args-2.7.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.3"
+      "languageVersion": "2.12"
     },
     {
       "name": "async",
@@ -26,62 +14,8 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "boolean_selector",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/boolean_selector-2.1.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.1"
-    },
-    {
-      "name": "build",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/build-4.0.5",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
-    },
-    {
-      "name": "build_config",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/build_config-1.3.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
-    },
-    {
-      "name": "build_daemon",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/build_daemon-4.1.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
-    },
-    {
-      "name": "build_runner",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/build_runner-2.13.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
-    },
-    {
-      "name": "built_collection",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/built_collection-5.1.1",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
-      "name": "built_value",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/built_value-8.12.4",
-      "packageUri": "lib/",
-      "languageVersion": "3.0"
-    },
-    {
-      "name": "charcode",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/charcode-1.4.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.0"
-    },
-    {
-      "name": "checked_yaml",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/checked_yaml-2.0.4",
-      "packageUri": "lib/",
-      "languageVersion": "3.8"
-    },
-    {
-      "name": "cli_util",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/cli_util-0.4.2",
+      "name": "clock",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/clock-1.1.2",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -90,12 +24,6 @@
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/code_assets-1.0.0",
       "packageUri": "lib/",
       "languageVersion": "3.9"
-    },
-    {
-      "name": "code_builder",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/code_builder-4.11.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
     },
     {
       "name": "collection",
@@ -116,10 +44,10 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "dart_style",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/dart_style-3.1.7",
+      "name": "dart_jsonwebtoken",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/dart_jsonwebtoken-3.3.2",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.0"
     },
     {
       "name": "drift",
@@ -128,16 +56,10 @@
       "languageVersion": "3.5"
     },
     {
-      "name": "drift_dev",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/drift_dev-2.32.0",
+      "name": "ed25519_edwards",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/ed25519_edwards-0.3.1",
       "packageUri": "lib/",
-      "languageVersion": "3.5"
-    },
-    {
-      "name": "dynos_sync",
-      "rootUri": "../../dynos_sync",
-      "packageUri": "lib/",
-      "languageVersion": "3.0"
+      "languageVersion": "2.12"
     },
     {
       "name": "ffi",
@@ -158,16 +80,22 @@
       "languageVersion": "3.1"
     },
     {
+      "name": "functions_client",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/functions_client-2.5.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "glob",
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/glob-2.1.3",
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
-      "name": "graphs",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/graphs-2.3.2",
+      "name": "gotrue",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/gotrue-2.18.0",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.3"
     },
     {
       "name": "hooks",
@@ -176,10 +104,10 @@
       "languageVersion": "3.10"
     },
     {
-      "name": "http_multi_server",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/http_multi_server-3.2.2",
+      "name": "http",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/http-1.6.0",
       "packageUri": "lib/",
-      "languageVersion": "3.2"
+      "languageVersion": "3.4"
     },
     {
       "name": "http_parser",
@@ -188,28 +116,16 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "io",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/io-1.0.5",
+      "name": "jwt_decode",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/jwt_decode-0.3.1",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "json_annotation",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/json_annotation-4.11.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.9"
+      "languageVersion": "2.12"
     },
     {
       "name": "logging",
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/logging-1.3.0",
       "packageUri": "lib/",
       "languageVersion": "3.4"
-    },
-    {
-      "name": "matcher",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/matcher-0.12.19",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
     },
     {
       "name": "meta",
@@ -230,22 +146,22 @@
       "languageVersion": "3.10"
     },
     {
-      "name": "package_config",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/package_config-2.2.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
       "name": "path",
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/path-1.9.1",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
-      "name": "pool",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/pool-1.5.2",
+      "name": "pointycastle",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/pointycastle-4.0.0",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.2"
+    },
+    {
+      "name": "postgrest",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/postgrest-2.6.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "pub_semver",
@@ -254,34 +170,22 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "pubspec_parse",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/pubspec_parse-1.5.0",
+      "name": "realtime_client",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/realtime_client-2.7.0",
       "packageUri": "lib/",
-      "languageVersion": "3.6"
+      "languageVersion": "3.0"
     },
     {
-      "name": "recase",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/recase-4.1.0",
+      "name": "retry",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/retry-3.1.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "rxdart",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/rxdart-0.28.0",
       "packageUri": "lib/",
       "languageVersion": "2.12"
-    },
-    {
-      "name": "shelf",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/shelf-1.4.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "shelf_web_socket",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/shelf_web_socket-3.0.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.5"
-    },
-    {
-      "name": "source_gen",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/source_gen-4.2.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.9"
     },
     {
       "name": "source_span",
@@ -296,16 +200,16 @@
       "languageVersion": "3.9"
     },
     {
-      "name": "sqlparser",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/sqlparser-0.44.3",
-      "packageUri": "lib/",
-      "languageVersion": "3.5"
-    },
-    {
       "name": "stack_trace",
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/stack_trace-1.12.1",
       "packageUri": "lib/",
       "languageVersion": "3.4"
+    },
+    {
+      "name": "storage_client",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/storage_client-2.4.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "stream_channel",
@@ -314,28 +218,22 @@
       "languageVersion": "3.3"
     },
     {
-      "name": "stream_transform",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/stream_transform-2.1.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.1"
-    },
-    {
       "name": "string_scanner",
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/string_scanner-1.4.1",
       "packageUri": "lib/",
       "languageVersion": "3.1"
     },
     {
+      "name": "supabase",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/supabase-2.10.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
       "name": "term_glyph",
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/term_glyph-1.2.2",
       "packageUri": "lib/",
       "languageVersion": "3.1"
-    },
-    {
-      "name": "test_api",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/test_api-0.7.11",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
     },
     {
       "name": "typed_data",
@@ -348,12 +246,6 @@
       "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/uuid-4.5.3",
       "packageUri": "lib/",
       "languageVersion": "3.0"
-    },
-    {
-      "name": "watcher",
-      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/watcher-1.2.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
     },
     {
       "name": "web",
@@ -380,7 +272,13 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "dynos_sync_drift",
+      "name": "yet_another_json_isolate",
+      "rootUri": "file:///home/hassam/.pub-cache/hosted/pub.dev/yet_another_json_isolate-2.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "dynos_sync",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "3.0"

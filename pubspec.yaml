@@ -1,6 +1,7 @@
 name: dynos_sync
 description: A local-first, offline-capable sync engine. Backend and database agnostic.
 version: 0.1.0
+repository: https://github.com/HassamSheikh/dynos_sync
 
 environment:
   sdk: ^3.0.0
@@ -8,3 +9,5 @@ environment:
 dependencies:
   uuid: ^4.0.0
   meta: ^1.9.0
+  drift: ^2.14.0
+  supabase: ^2.0.0

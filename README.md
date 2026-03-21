@@ -6,24 +6,22 @@ A local-first, offline-capable sync engine for Dart & Flutter apps.
 
 dynos_sync handles the hard parts of offline-first architecture: queueing writes for later, delta-syncing only what changed, retrying on failure, and coordinating splash-screen loading. It works with any local database and any remote backend.
 
-## Packages
-
-| Package | Description | Dependencies |
-|---------|-------------|--------------|
-| [`dynos_sync`](packages/dynos_sync/) | Core engine + interfaces | Pure Dart |
-| [`dynos_sync_drift`](packages/dynos_sync_drift/) | Drift (SQLite) adapters | dynos_sync + drift |
-| [`dynos_sync_supabase`](packages/dynos_sync_supabase/) | Supabase adapter | dynos_sync + supabase |
-
-## Quick Start
-
-### 1. Install
+## Install
 
 ```yaml
 dependencies:
   dynos_sync: ^0.1.0
-  dynos_sync_drift: ^0.1.0       # if using Drift
-  dynos_sync_supabase: ^0.1.0    # if using Supabase
 ```
+
+Three import paths, one package:
+
+```dart
+import 'package:dynos_sync/dynos_sync.dart';     // core engine + interfaces
+import 'package:dynos_sync/drift.dart';           // Drift adapters (optional)
+import 'package:dynos_sync/supabase.dart';        // Supabase adapter (optional)
+```
+
+## Quick Start
 
 ### 2. Add sync tables to your Drift database
 

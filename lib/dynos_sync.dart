@@ -1,7 +1,14 @@
 /// A local-first, offline-capable sync engine.
 ///
 /// Backend and database agnostic — implement [LocalStore], [RemoteStore],
-/// and [QueueStore] for your stack.
+/// and [QueueStore] for your stack, or use the provided Drift and Supabase
+/// adapters.
+///
+/// ```dart
+/// import 'package:dynos_sync/dynos_sync.dart';           // core
+/// import 'package:dynos_sync/drift.dart';                 // Drift adapters
+/// import 'package:dynos_sync/supabase.dart';              // Supabase adapter
+/// ```
 library dynos_sync;
 
 export 'src/sync_engine.dart';

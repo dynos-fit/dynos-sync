@@ -14,6 +14,24 @@ import 'sync_operation.dart';
 /// Write locally first, queue changes for push, delta-pull on launch.
 /// Backend and database agnostic — depends only on [LocalStore],
 /// [RemoteStore], [QueueStore], and [TimestampStore] interfaces.
+///
+/// ## Quick start
+///
+/// ```dart
+/// final sync = SyncEngine(
+///   local: DriftLocalStore(db),
+///   remote: SupabaseRemoteStore(client: client, userId: uid),
+///   queue: DriftQueueStore(db),
+///   timestamps: DriftTimestampStore(db),
+///   tables: ['tasks', 'notes'],
+/// );
+///
+/// // Write (local + queued for sync)
+/// await sync.write('tasks', id, {'title': 'Buy milk'});
+///
+/// // Sync on app launch
+/// await sync.syncAll();
+/// ```
 class SyncEngine {
   SyncEngine({
     required this.local,
@@ -37,7 +55,7 @@ class SyncEngine {
   final SyncConfig config;
 
   /// Optional error callback. Called with (error, stackTrace, context).
-  /// If null, errors are silently swallowed (logged by caller).
+  /// If null, errors are silently swallowed.
   final void Function(Object error, StackTrace stack, String context)? onError;
 
   static const _uuid = Uuid();
@@ -54,7 +72,7 @@ class SyncEngine {
 
   /// Write a record locally and queue it for push to the remote.
   ///
-  /// The local write happens synchronously (from the caller's perspective).
+  /// The local write happens first (instant UI update).
   /// The remote push is queued and attempted immediately, but will retry
   /// on next [drain] if it fails.
   Future<void> write(
@@ -123,7 +141,11 @@ class SyncEngine {
       final pulls = <Future<void>>[];
       for (final table in tables) {
         final remoteTime = remoteTs[table];
-        if (remoteTime == null) continue;
+        if (remoteTime == null) {
+          // No remote timestamp — pull unconditionally with epoch
+          pulls.add(_pullTable(table, await timestamps.get(table)));
+          continue;
+        }
 
         final localTime = await timestamps.get(table);
         if (remoteTime.isAfter(localTime)) {
@@ -184,7 +206,7 @@ class SyncEngine {
     );
     await queue.enqueue(entry);
 
-    // Attempt immediate push (non-blocking)
+    // Attempt immediate push (best-effort)
     try {
       await remote.push(table, id, operation, data);
       await queue.markSynced(entry.id);

@@ -23,6 +23,6 @@ abstract class RemoteStore {
   /// local timestamps to skip unchanged tables entirely.
   ///
   /// Return a map of `{ tableName: lastModified }`.
-  /// Tables not present in the map will be skipped during pull.
+  /// Tables not present in the map will be pulled unconditionally.
   Future<Map<String, DateTime>> getRemoteTimestamps();
 }

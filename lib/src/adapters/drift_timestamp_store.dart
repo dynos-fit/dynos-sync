@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:dynos_sync/dynos_sync.dart';
+import '../timestamp_store.dart';
 
 /// [TimestampStore] implementation backed by a Drift [DynosSyncTimestampsTable].
 ///

@@ -2,6 +2,10 @@
 ///
 /// Provides [SupabaseRemoteStore] — a [RemoteStore] implementation
 /// that pushes/pulls data via Supabase Postgrest.
-library dynos_sync_supabase;
+///
+/// ```dart
+/// import 'package:dynos_sync/supabase.dart';
+/// ```
+library dynos_sync.supabase;
 
-export 'src/supabase_remote_store.dart';
+export 'src/adapters/supabase_remote_store.dart';

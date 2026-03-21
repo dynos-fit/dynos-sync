@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
-import 'package:dynos_sync/dynos_sync.dart';
-
-import 'sync_queue_table.dart';
+import '../queue_store.dart';
+import '../sync_entry.dart';
+import '../sync_operation.dart';
 
 /// [QueueStore] implementation backed by a Drift [DynosSyncQueueTable].
 ///
@@ -63,9 +63,15 @@ class DriftQueueStore implements QueueStore {
       recordId: row.read<String>('record_id'),
       operation: SyncOperation.values.byName(row.read<String>('operation')),
       payload: jsonDecode(row.read<String>('payload')) as Map<String, dynamic>,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at'), isUtc: true),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('created_at'),
+        isUtc: true,
+      ),
       syncedAt: row.readNullable<int>('synced_at') != null
-          ? DateTime.fromMillisecondsSinceEpoch(row.read<int>('synced_at'), isUtc: true)
+          ? DateTime.fromMillisecondsSinceEpoch(
+              row.read<int>('synced_at'),
+              isUtc: true,
+            )
           : null,
     );
   }
