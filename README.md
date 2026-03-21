@@ -110,9 +110,11 @@ We subjected the engine to a "Thundering Herd" stress test (10,000 records).
 
 For deep-dives into the engine's internals and security protocols:
 
-*   **[🏟️ Architecture Specification](doc/architecture.md)**: Understanding the Sync Engine Protocol, Delta Pulls, and High-Scale Ingestion.
+*   **[🚀 Getting Started Tutorial](doc/getting_started.md)**: Build a high-scale sync engine in 5 minutes.
+*   **[🏟️ Architecture Specification](doc/architecture.md)**: Understanding Delta Pulling and the Ordered Ingestion Protocol.
 *   **[🛡️ Security Audit Report](doc/security_audit.md)**: Deep-dive into the 42 attack vectors and current hardening state.
-*   **[🤝 Contributing Guide](CONTRIBUTING.md)**: How to add new adapters or features while maintaining Diamond-Standard quality.
+*   **[❓ Common Questions & FAQ](doc/faq.md)**: Troubleshooting, performance, and best practices.
+*   **[🤝 Contributing Guide](CONTRIBUTING.md)**: How to add new adapters or features while maintaining Diamond quality.
 
 ---
 
