@@ -1,0 +1,195 @@
+import 'dart:async';
+import 'package:uuid/uuid.dart';
+
+import 'local_store.dart';
+import 'remote_store.dart';
+import 'queue_store.dart';
+import 'timestamp_store.dart';
+import 'sync_config.dart';
+import 'sync_entry.dart';
+import 'sync_operation.dart';
+
+/// A local-first, offline-capable sync engine.
+///
+/// Write locally first, queue changes for push, delta-pull on launch.
+/// Backend and database agnostic — depends only on [LocalStore],
+/// [RemoteStore], [QueueStore], and [TimestampStore] interfaces.
+class SyncEngine {
+  SyncEngine({
+    required this.local,
+    required this.remote,
+    required this.queue,
+    required this.timestamps,
+    required this.tables,
+    this.config = const SyncConfig(),
+    this.onError,
+  });
+
+  final LocalStore local;
+  final RemoteStore remote;
+  final QueueStore queue;
+  final TimestampStore timestamps;
+
+  /// Tables registered for sync.
+  final List<String> tables;
+
+  /// Engine configuration.
+  final SyncConfig config;
+
+  /// Optional error callback. Called with (error, stackTrace, context).
+  /// If null, errors are silently swallowed (logged by caller).
+  final void Function(Object error, StackTrace stack, String context)? onError;
+
+  static const _uuid = Uuid();
+
+  // ── Initial sync gate ─────────────────────────────────────────────────────
+
+  final Completer<void> _initialSync = Completer<void>();
+
+  /// Completes when the first [syncAll] finishes (success or failure).
+  /// Useful for splash screens that need to wait for data.
+  Future<void> get initialSyncDone => _initialSync.future;
+
+  // ── Write (optimistic) ────────────────────────────────────────────────────
+
+  /// Write a record locally and queue it for push to the remote.
+  ///
+  /// The local write happens synchronously (from the caller's perspective).
+  /// The remote push is queued and attempted immediately, but will retry
+  /// on next [drain] if it fails.
+  Future<void> write(
+    String table,
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    await local.upsert(table, id, data);
+    await _enqueue(table, id, SyncOperation.upsert, data);
+  }
+
+  /// Delete a record locally and queue the deletion for push.
+  Future<void> remove(String table, String id) async {
+    await local.delete(table, id);
+    await _enqueue(table, id, SyncOperation.delete, {});
+  }
+
+  /// Queue a push without writing locally.
+  ///
+  /// Use when you've already written to the local DB via your own DAO
+  /// and just need to sync the change remotely.
+  Future<void> push(
+    String table,
+    String id,
+    Map<String, dynamic> data, {
+    SyncOperation operation = SyncOperation.upsert,
+  }) async {
+    await _enqueue(table, id, operation, data);
+  }
+
+  // ── Drain (push pending) ──────────────────────────────────────────────────
+
+  /// Push all pending queue entries to the remote.
+  ///
+  /// Processes up to [SyncConfig.batchSize] entries per call.
+  /// On failure: stops at first error if [SyncConfig.stopOnFirstError],
+  /// otherwise skips and continues.
+  Future<void> drain() async {
+    final pending = await queue.getPending(limit: config.batchSize);
+
+    for (final entry in pending) {
+      try {
+        await remote.push(entry.table, entry.recordId, entry.operation, entry.payload);
+        await queue.markSynced(entry.id);
+      } catch (e, st) {
+        onError?.call(e, st, 'drain[${entry.table}/${entry.recordId}]');
+        if (config.stopOnFirstError) break;
+      }
+    }
+
+    await queue.purgeSynced(retention: config.queueRetention);
+  }
+
+  // ── Pull (delta sync) ─────────────────────────────────────────────────────
+
+  /// Pull changes from the remote for all registered tables.
+  ///
+  /// Uses the "smart sync gate" pattern:
+  /// 1. Fetch remote timestamps (1 lightweight call)
+  /// 2. Compare against local timestamps
+  /// 3. Only pull tables where remote > local
+  Future<void> pullAll() async {
+    try {
+      final remoteTs = await remote.getRemoteTimestamps();
+
+      final pulls = <Future<void>>[];
+      for (final table in tables) {
+        final remoteTime = remoteTs[table];
+        if (remoteTime == null) continue;
+
+        final localTime = await timestamps.get(table);
+        if (remoteTime.isAfter(localTime)) {
+          pulls.add(_pullTable(table, localTime));
+        }
+      }
+
+      await Future.wait(pulls);
+    } catch (e, st) {
+      onError?.call(e, st, 'pullAll');
+    }
+  }
+
+  /// Pull a single table's changes since [since].
+  Future<void> _pullTable(String table, DateTime since) async {
+    try {
+      final rows = await remote.pullSince(table, since);
+      for (final row in rows) {
+        final id = row['id']?.toString();
+        if (id == null) continue;
+        await local.upsert(table, id, row);
+      }
+      await timestamps.set(table, DateTime.now().toUtc());
+    } catch (e, st) {
+      onError?.call(e, st, 'pull[$table]');
+    }
+  }
+
+  // ── Sync all (drain + pull) ───────────────────────────────────────────────
+
+  /// Full sync cycle: drain pending writes, then pull remote changes.
+  ///
+  /// This is the method to call on app launch.
+  Future<void> syncAll() async {
+    try {
+      await drain();
+      await pullAll();
+    } finally {
+      if (!_initialSync.isCompleted) _initialSync.complete();
+    }
+  }
+
+  // ── Internal ──────────────────────────────────────────────────────────────
+
+  Future<void> _enqueue(
+    String table,
+    String id,
+    SyncOperation operation,
+    Map<String, dynamic> data,
+  ) async {
+    final entry = SyncEntry(
+      id: _uuid.v4(),
+      table: table,
+      recordId: id,
+      operation: operation,
+      payload: data,
+      createdAt: DateTime.now().toUtc(),
+    );
+    await queue.enqueue(entry);
+
+    // Attempt immediate push (non-blocking)
+    try {
+      await remote.push(table, id, operation, data);
+      await queue.markSynced(entry.id);
+    } catch (_) {
+      // Will retry on next drain()
+    }
+  }
+}

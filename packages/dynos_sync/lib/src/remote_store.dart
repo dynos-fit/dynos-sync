@@ -1,0 +1,28 @@
+import 'sync_operation.dart';
+
+/// Interface for the remote backend (Supabase, Firebase, custom REST, etc.).
+///
+/// Implement this to connect the sync engine to your server.
+abstract class RemoteStore {
+  /// Push a single record to the remote.
+  Future<void> push(
+    String table,
+    String id,
+    SyncOperation operation,
+    Map<String, dynamic> data,
+  );
+
+  /// Pull all records from [table] updated after [since].
+  ///
+  /// Return an empty list if nothing changed.
+  Future<List<Map<String, dynamic>>> pullSince(String table, DateTime since);
+
+  /// Get the last-modified timestamp for each synced table from the remote.
+  ///
+  /// Used for the "smart sync gate" — compare remote timestamps against
+  /// local timestamps to skip unchanged tables entirely.
+  ///
+  /// Return a map of `{ tableName: lastModified }`.
+  /// Tables not present in the map will be skipped during pull.
+  Future<Map<String, DateTime>> getRemoteTimestamps();
+}
