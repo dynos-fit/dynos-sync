@@ -1,6 +1,7 @@
 # 🛡️ dynos_sync
 
-**High-Reliability, Production-Hardened Sync Engine for Dart & Flutter.**
+**High-Reliability, Production-Hardened Sync Engine for Dart & Flutter.**  
+*Built by the team at [**dynos.fit**](https://dynos.fit) to power high-concurrency workout synchronization.*
 
 [![Pub.dev](https://img.shields.io/pub/v/dynos_sync)](https://pub.dev/packages/dynos_sync)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
@@ -8,6 +9,10 @@
 [![Performance: Elite](https://img.shields.io/badge/Performance-10k_writes/sec-blueviolet)](#)
 
 `dynos_sync` is a high-performance, headless sync engine designed to bridge the gap between local storage (SQLite/Drift) and remote backends (Supabase/REST). Built for applications that demand **absolute reliability**, **zero-jank performance**, and **hardened security**.
+
+## 🦾 Battle-Tested in Production
+
+Developed as the core synchronization layer for [**dynos.fit**](https://dynos.fit), this engine handles the heavy lifting of offline-first persistence and real-time data reconciliation for high-scale fitness telemetry. It is engineered to survive the most demanding production environments.
 
 ---
 
