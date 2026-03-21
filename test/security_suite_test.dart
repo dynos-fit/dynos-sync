@@ -6,6 +6,7 @@ import 'package:dynos_sync/dynos_sync.dart';
 // ─── IN-MEMORY STORES (Full Interface Implementations) ──────────────────────
 
 class InMemoryLocalStore implements LocalStore {
+  @override Future<void> clearAll(List<String> t) async {}
   final data = <String, Map<String, dynamic>>{};
 
   Map<String, dynamic>? getData(String table, String id) => data['$table:$id'];
@@ -23,6 +24,7 @@ class InMemoryLocalStore implements LocalStore {
 }
 
 class ThrowingLocalStore implements LocalStore {
+  @override Future<void> clearAll(List<String> t) async {}
   @override
   Future<void> upsert(
       String table, String id, Map<String, dynamic> record) async {

@@ -114,7 +114,7 @@ class SyncEngine {
   Duration _getRetryDelay(int attempt) {
     if (!config.useExponentialBackoff) return Duration.zero;
     // 2, 4, 8, 16... seconds
-    return Duration(seconds: 1 << attempt);
+    return Duration(seconds: math.max(1, 1 << attempt));
   }
 
   /// Extract an `updated_at` timestamp from a data map.
@@ -157,14 +157,17 @@ class SyncEngine {
     String id,
     Map<String, dynamic> data,
   ) async {
-    // Validate payload size before anything
-    _validatePayloadSize(data);
+    // 🛡️ Scrub PII before anything else
+    final maskedData = _maskPayload(data);
+
+    // Validate payload size after scrubbing (just in case)
+    _validatePayloadSize(maskedData);
 
     // 1. Queue it (includes RLS check)
-    await _enqueue(table, id, SyncOperation.upsert, data);
+    await _enqueue(table, id, SyncOperation.upsert, maskedData);
 
     // 2. Write it locally
-    await local.upsert(table, id, data);
+    await local.upsert(table, id, maskedData);
   }
 
   /// Delete a record locally and queue the deletion for push.
@@ -503,6 +506,7 @@ class SyncEngine {
   /// where one user's unsynced data might be pushed under the next user's session.
   Future<void> logout() async {
     await queue.clearAll();
+    await local.clearAll(tables); // 🛡️ Category 1: Purge local identity context
     for (final table in tables) {
       await timestamps.set(
         table,

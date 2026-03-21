@@ -8,6 +8,7 @@ import 'package:dynos_sync/dynos_sync.dart';
 class MockRemoteStore extends Mock implements RemoteStore {}
 
 class MockLocalStore extends Mock implements LocalStore {}
+  @override Future<void> clearAll(List<String> t) async {}
 
 class MockQueueStore extends Mock implements QueueStore {}
 
@@ -45,6 +46,7 @@ class HeavyQueue implements QueueStore {
 }
 
 class StaticLocal implements LocalStore {
+  @override Future<void> clearAll(List<String> t) async {}
   @override
   Future<void> upsert(String n, String i, Map<String, dynamic> d) async {}
   @override

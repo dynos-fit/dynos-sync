@@ -7,4 +7,8 @@ abstract class LocalStore {
 
   /// Delete a record from a local table.
   Future<void> delete(String table, String id);
+
+  /// Wipe all data in the specified tables.
+  /// Used for secure logout (Category 1: Cross-User Isolation).
+  Future<void> clearAll(List<String> tables);
 }

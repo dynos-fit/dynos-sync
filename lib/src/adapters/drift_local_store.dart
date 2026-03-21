@@ -35,4 +35,12 @@ class DriftLocalStore implements LocalStore {
       [id],
     );
   }
+
+  @override
+  Future<void> clearAll(List<String> tables) async {
+    for (final table in tables) {
+      final safeTable = '"${table.replaceAll('"', '""')}"';
+      await _db.customStatement('DELETE FROM $safeTable');
+    }
+  }
 }
