@@ -138,8 +138,7 @@ class DriftQueueStore implements QueueStore {
       table: row.read<String>('table_name'),
       recordId: row.read<String>('record_id'),
       operation: SyncOperation.values.byName(row.read<String>('operation')),
-      payload:
-          jsonDecode(row.read<String>('payload')) as Map<String, dynamic>,
+      payload: jsonDecode(row.read<String>('payload')) as Map<String, dynamic>,
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         row.read<int>('created_at'),
         isUtc: true,

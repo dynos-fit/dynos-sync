@@ -130,10 +130,8 @@ class SupabaseRemoteStore implements RemoteStore {
     if (tableTimestampKeys.isEmpty) return {};
 
     try {
-      final rows = await client
-          .from(syncStatusTable)
-          .select()
-          .eq('user_id', userId());
+      final rows =
+          await client.from(syncStatusTable).select().eq('user_id', userId());
 
       if (rows.isEmpty) return {};
 

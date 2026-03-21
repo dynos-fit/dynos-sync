@@ -13,8 +13,10 @@ class DriftLocalStore implements LocalStore {
   final GeneratedDatabase _db;
 
   @override
-  Future<void> upsert(String table, String id, Map<String, dynamic> data) async {
-    final columns = data.keys.map((c) => '"${c.replaceAll('"', '""')}"').toList();
+  Future<void> upsert(
+      String table, String id, Map<String, dynamic> data) async {
+    final columns =
+        data.keys.map((c) => '"${c.replaceAll('"', '""')}"').toList();
     final safeTable = '"${table.replaceAll('"', '""')}"';
     final placeholders = List.filled(columns.length, '?').join(', ');
     final values = data.values.toList();

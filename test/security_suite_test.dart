@@ -45,21 +45,23 @@ class InMemoryQueueStore implements QueueStore {
 
   @override
   Future<List<SyncEntry>> getPending({int limit = 50, DateTime? now}) async {
-    return _queue.where((e) {
-      if (!e.isPending) return false;
-      if (now != null &&
-          e.nextRetryAt != null &&
-          e.nextRetryAt!.isAfter(now)) {
-        return false;
-      }
-      return true;
-    }).take(limit).toList();
+    return _queue
+        .where((e) {
+          if (!e.isPending) return false;
+          if (now != null &&
+              e.nextRetryAt != null &&
+              e.nextRetryAt!.isAfter(now)) {
+            return false;
+          }
+          return true;
+        })
+        .take(limit)
+        .toList();
   }
 
   @override
   Future<bool> hasPending(String table, String id) async =>
-      _queue.any(
-          (e) => e.table == table && e.recordId == id && e.isPending);
+      _queue.any((e) => e.table == table && e.recordId == id && e.isPending);
 
   @override
   Future<Set<String>> getPendingIds(String table) async => _queue
@@ -69,10 +71,10 @@ class InMemoryQueueStore implements QueueStore {
 
   @override
   Future<List<SyncEntry>> getPendingEntries(
-      String table, String recordId) async =>
+          String table, String recordId) async =>
       _queue
-          .where((e) =>
-              e.table == table && e.recordId == recordId && e.isPending)
+          .where(
+              (e) => e.table == table && e.recordId == recordId && e.isPending)
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -106,7 +108,7 @@ class InMemoryQueueStore implements QueueStore {
 
   @override
   Future<void> purgeSynced(
-      {Duration retention = const Duration(days: 30)}) async =>
+          {Duration retention = const Duration(days: 30)}) async =>
       _queue.removeWhere((e) => !e.isPending);
 
   @override
@@ -114,8 +116,8 @@ class InMemoryQueueStore implements QueueStore {
 }
 
 class ConfigurableRemoteStore implements RemoteStore {
-  Future<void> Function(
-      String, String, SyncOperation, Map<String, dynamic>)? onPush;
+  Future<void> Function(String, String, SyncOperation, Map<String, dynamic>)?
+      onPush;
   Future<void> Function(List<SyncEntry>)? onPushBatch;
   Future<List<Map<String, dynamic>>> Function(String, DateTime)? onPullSince;
   Future<Map<String, DateTime>> Function()? onGetRemoteTimestamps;
@@ -306,8 +308,7 @@ void main() {
       engine.dispose();
     });
 
-    test(
-        '5. Per-user timestamps reset on logout — new user starts from epoch',
+    test('5. Per-user timestamps reset on logout — new user starts from epoch',
         () async {
       // SEVERITY: CRITICAL
       final timestamps = InMemoryTimestampStore();
@@ -326,8 +327,7 @@ void main() {
       final now = DateTime.now().toUtc();
       await timestamps.set('tasks', now);
       await timestamps.set('notes', now.subtract(const Duration(hours: 1)));
-      await timestamps.set(
-          'profiles', now.subtract(const Duration(hours: 2)));
+      await timestamps.set('profiles', now.subtract(const Duration(hours: 2)));
 
       // Verify timestamps are set
       expect((await timestamps.get('tasks')).millisecondsSinceEpoch,
@@ -349,15 +349,14 @@ void main() {
   // CATEGORY 2 — DATA LEAKS (Payload & Log Exposure)
   // ═══════════════════════════════════════════════════════════════════════════
   group('CATEGORY 2 — DATA LEAKS (Payload & Log Exposure)', () {
-    test(
-        '6. Sensitive fields masked in onError logs when push fails',
+    test('6. Sensitive fields masked in onError logs when push fails',
         () async {
       // SEVERITY: HIGH
       final errorLogs = <String>[];
       final remote = ConfigurableRemoteStore();
       // Make immediate push fail (write's best-effort push)
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Push failed');
+      remote.onPush =
+          (_, __, ___, ____) async => throw Exception('Push failed');
       // Make batch fail too so drain falls back to individual push
       remote.onPushBatch = (_) async => throw Exception('Batch failed');
 
@@ -405,8 +404,8 @@ void main() {
       // SEVERITY: HIGH
       final errorLogs = <String>[];
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Network error');
+      remote.onPush =
+          (_, __, ___, ____) async => throw Exception('Network error');
       remote.onPushBatch = (_) async => throw Exception('Batch error');
 
       final engine = SyncEngine(
@@ -433,14 +432,12 @@ void main() {
       }
     });
 
-    test(
-        '8. Error toString does not contain raw user payload data',
-        () async {
+    test('8. Error toString does not contain raw user payload data', () async {
       // SEVERITY: MEDIUM
       final errors = <Object>[];
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Server down');
+      remote.onPush =
+          (_, __, ___, ____) async => throw Exception('Server down');
       remote.onPushBatch = (_) async => throw Exception('Batch down');
 
       final engine = SyncEngine(
@@ -458,14 +455,11 @@ void main() {
 
       for (final err in errors) {
         expect(err.toString(), isNot(contains('ALPHA-BRAVO')),
-            reason:
-                'Error toString should not leak payload data');
+            reason: 'Error toString should not leak payload data');
       }
     });
 
-    test(
-        '9. sync_log table not in engine.tables is never pushed',
-        () async {
+    test('9. sync_log table not in engine.tables is never pushed', () async {
       // SEVERITY: MEDIUM
       final remote = ConfigurableRemoteStore();
 
@@ -487,12 +481,11 @@ void main() {
         if (table == 'sync_log') syncLogPulled = true;
         return [];
       };
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now(), 'notes': DateTime.now()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now(), 'notes': DateTime.now()};
 
       await engine.pullAll();
-      expect(syncLogPulled, isFalse,
-          reason: 'sync_log should never be pulled');
+      expect(syncLogPulled, isFalse, reason: 'sync_log should never be pulled');
     });
 
     test(
@@ -545,15 +538,12 @@ void main() {
   // CATEGORY 3 — SECURITY (Injection & Tampering)
   // ═══════════════════════════════════════════════════════════════════════════
   group('CATEGORY 3 — SECURITY (Injection & Tampering)', () {
-    test(
-        '11. SQL injection strings stored as literals in queue',
-        () async {
+    test('11. SQL injection strings stored as literals in queue', () async {
       // SEVERITY: CRITICAL
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
       // Make push fail so entry stays in queue as pending
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -603,8 +593,8 @@ void main() {
       final remote = ConfigurableRemoteStore();
       remote.onPullSince = (table, since) async =>
           throw const FormatException('Invalid JSON in response body');
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -637,8 +627,8 @@ void main() {
             {'id': 'r1', 'user_id': 'attacker-999', 'title': 'Evil'},
             {'id': 'r2', 'user_id': 'user-A', 'title': 'Legit'},
           ];
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       final local = InMemoryLocalStore();
       final engine = SyncEngine(
@@ -700,15 +690,12 @@ void main() {
       expect(all.first.syncedAt, isNotNull);
     });
 
-    test(
-        '16. Special characters survive round-trip through queue',
-        () async {
+    test('16. Special characters survive round-trip through queue', () async {
       // SEVERITY: MEDIUM
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
       // Make push fail so entries stay pending for inspection
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -785,8 +772,8 @@ void main() {
       // So we need to reset the counter after writes.
       // Actually, the best-effort push in _enqueue also calls remote.push.
       // We need to let the best-effort pushes fail silently so entries stay pending.
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Best-effort fail');
+      remote.onPush =
+          (_, __, ___, ____) async => throw Exception('Best-effort fail');
       for (var i = 0; i < 5; i++) {
         await engine.write('tasks', 'task-$i', {'title': 'Task $i'});
       }
@@ -814,8 +801,7 @@ void main() {
           reason: 'Remaining 3 entries must be preserved (not dropped)');
     });
 
-    test(
-        '18. Push without auth (userId is null): no RLS check, push proceeds',
+    test('18. Push without auth (userId is null): no RLS check, push proceeds',
         () async {
       // SEVERITY: MEDIUM
       final remote = ConfigurableRemoteStore();
@@ -857,15 +843,12 @@ void main() {
           'title': 'Sneaky',
         }),
         throwsA(
-          predicate<Exception>(
-              (e) => e.toString().contains('[RLS_Bypass]')),
+          predicate<Exception>((e) => e.toString().contains('[RLS_Bypass]')),
         ),
       );
     });
 
-    test(
-        '20. After logout, queue and timestamps are wiped',
-        () async {
+    test('20. After logout, queue and timestamps are wiped', () async {
       // SEVERITY: CRITICAL
       final queue = InMemoryQueueStore();
       final timestamps = InMemoryTimestampStore();
@@ -914,8 +897,7 @@ void main() {
       final remote = ConfigurableRemoteStore();
 
       // Fail best-effort push so entry stays pending for conflict resolution
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: local,
@@ -923,8 +905,8 @@ void main() {
         queue: queue,
         timestamps: InMemoryTimestampStore(),
         tables: ['tasks'],
-        config: const SyncConfig(
-            conflictStrategy: ConflictStrategy.lastWriteWins),
+        config:
+            const SyncConfig(conflictStrategy: ConflictStrategy.lastWriteWins),
       );
       engine.events.listen(events.add);
 
@@ -944,8 +926,8 @@ void main() {
               'updated_at': t2.toIso8601String(),
             },
           ];
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       await engine.pullAll();
 
@@ -987,8 +969,7 @@ void main() {
       final events = <SyncEvent>[];
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -996,8 +977,8 @@ void main() {
         queue: queue,
         timestamps: InMemoryTimestampStore(),
         tables: ['tasks'],
-        config: const SyncConfig(
-            conflictStrategy: ConflictStrategy.lastWriteWins),
+        config:
+            const SyncConfig(conflictStrategy: ConflictStrategy.lastWriteWins),
       );
       engine.events.listen(events.add);
 
@@ -1014,8 +995,8 @@ void main() {
               'updated_at': DateTime.utc(2025, 6, 1).toIso8601String(),
             },
           ];
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       await engine.pullAll();
 
@@ -1026,16 +1007,14 @@ void main() {
               'LWW picks local even with year-3000 timestamp (documents clock-skew limitation)');
     });
 
-    test(
-        '23. Same-field conflict with serverWins: remote value survives',
+    test('23. Same-field conflict with serverWins: remote value survives',
         () async {
       // SEVERITY: HIGH
       final events = <SyncEvent>[];
       final local = InMemoryLocalStore();
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: local,
@@ -1043,19 +1022,17 @@ void main() {
         queue: queue,
         timestamps: InMemoryTimestampStore(),
         tables: ['exercises'],
-        config:
-            const SyncConfig(conflictStrategy: ConflictStrategy.serverWins),
+        config: const SyncConfig(conflictStrategy: ConflictStrategy.serverWins),
       );
       engine.events.listen(events.add);
 
-      await engine.write(
-          'exercises', 'e1', {'name': 'Push', 'sets': 3});
+      await engine.write('exercises', 'e1', {'name': 'Push', 'sets': 3});
 
       remote.onPullSince = (table, since) async => [
             {'id': 'e1', 'name': 'Pull', 'sets': 5},
           ];
-      remote.onGetRemoteTimestamps = () async =>
-          {'exercises': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'exercises': DateTime.now().toUtc()};
 
       await engine.pullAll();
 
@@ -1070,16 +1047,14 @@ void main() {
       expect(localData?['name'], 'Pull');
     });
 
-    test(
-        '24. DELETE vs UPDATE: local delete operation wins over remote update',
+    test('24. DELETE vs UPDATE: local delete operation wins over remote update',
         () async {
       // SEVERITY: HIGH
       final events = <SyncEvent>[];
       final local = InMemoryLocalStore();
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: local,
@@ -1087,8 +1062,8 @@ void main() {
         queue: queue,
         timestamps: InMemoryTimestampStore(),
         tables: ['tasks'],
-        config: const SyncConfig(
-            conflictStrategy: ConflictStrategy.lastWriteWins),
+        config:
+            const SyncConfig(conflictStrategy: ConflictStrategy.lastWriteWins),
       );
       engine.events.listen(events.add);
 
@@ -1100,8 +1075,8 @@ void main() {
       remote.onPullSince = (table, since) async => [
             {'id': 'r1', 'title': 'Remote Update'},
           ];
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       await engine.pullAll();
 
@@ -1120,8 +1095,7 @@ void main() {
       final local = InMemoryLocalStore();
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       var callbackInvoked = false;
 
@@ -1151,8 +1125,8 @@ void main() {
       remote.onPullSince = (table, since) async => [
             {'id': 'r1', 'description': 'Remote Desc'},
           ];
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       await engine.pullAll();
 
@@ -1197,8 +1171,7 @@ void main() {
           reason: '10,000 writes must complete in < 5 seconds');
     });
 
-    test(
-        '27. Drain speed: 1,000 records drained, pushBatch is called',
+    test('27. Drain speed: 1,000 records drained, pushBatch is called',
         () async {
       // SEVERITY: HIGH
       final queue = InMemoryQueueStore();
@@ -1208,8 +1181,7 @@ void main() {
         batchCalled = true;
       };
       // Make initial best-effort push fail so entries stay pending
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1245,8 +1217,7 @@ void main() {
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
       var batchedCount = 0;
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1271,8 +1242,7 @@ void main() {
           reason: 'Only batchSize entries should be processed per drain');
     });
 
-    test(
-        '29. Drain lock: concurrent drain() calls — only one executes',
+    test('29. Drain lock: concurrent drain() calls — only one executes',
         () async {
       // SEVERITY: HIGH
       final queue = InMemoryQueueStore();
@@ -1285,8 +1255,7 @@ void main() {
         await Future.delayed(const Duration(milliseconds: 50));
       };
       // Make initial push fail so entries stay pending
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1344,8 +1313,7 @@ void main() {
           reason: 'All 100 entries must be in the queue (no data loss)');
     });
 
-    test(
-        '31. Concurrent writes during drain: new records not in current batch',
+    test('31. Concurrent writes during drain: new records not in current batch',
         () async {
       // SEVERITY: MEDIUM
       final queue = InMemoryQueueStore();
@@ -1353,8 +1321,7 @@ void main() {
       final batchedIds = <String>[];
 
       // Make initial push fail so entries stay pending
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1461,10 +1428,8 @@ void main() {
       final events = <SyncEvent>[];
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
-      remote.onPushBatch = (_) async =>
-          throw Exception('Batch offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
+      remote.onPushBatch = (_) async => throw Exception('Batch offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1502,21 +1467,17 @@ void main() {
       // we need to manually clear the nextRetryAt to simulate time passing.
       for (var i = 0; i < 5; i++) {
         // Clear nextRetryAt so the entry is eligible for the next drain
-        final pending = queue.allEntries
-            .where((e) => e.isPending)
-            .toList();
+        final pending = queue.allEntries.where((e) => e.isPending).toList();
         for (final p in pending) {
           // Set nextRetryAt to the past so getPending returns it
-          await queue.setNextRetryAt(
-              p.id, DateTime.utc(2000, 1, 1));
+          await queue.setNextRetryAt(p.id, DateTime.utc(2000, 1, 1));
         }
         await engine.drain();
       }
 
       // We should have 5 SyncRetryScheduled events
       final retries = events.whereType<SyncRetryScheduled>().toList();
-      expect(retries.length, 5,
-          reason: 'Should have 5 retry events');
+      expect(retries.length, 5, reason: 'Should have 5 retry events');
 
       // Verify backoff pattern: 2^(retryCount+1) seconds
       // retryCount at time of backoff calculation: 0, 1, 2, 3, 4
@@ -1527,12 +1488,9 @@ void main() {
       // the engine computes backoff from DateTime.now().
       // We can verify the events have increasing nextRetryAt offsets.
       for (var i = 0; i < retries.length; i++) {
-        final diff = retries[i]
-            .nextRetryAt
-            .difference(retries[i].timestamp)
-            .inSeconds;
-        final expectedMin =
-            (1 << (i + 1)) - 1; // Allow 1 second tolerance
+        final diff =
+            retries[i].nextRetryAt.difference(retries[i].timestamp).inSeconds;
+        final expectedMin = (1 << (i + 1)) - 1; // Allow 1 second tolerance
         final expectedMax = (1 << (i + 1)) + 1;
         expect(diff, inInclusiveRange(expectedMin, expectedMax),
             reason:
@@ -1551,10 +1509,9 @@ void main() {
       // SEVERITY: CRITICAL
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Push failed');
-      remote.onPushBatch = (_) async =>
-          throw Exception('Batch failed');
+      remote.onPush =
+          (_, __, ___, ____) async => throw Exception('Push failed');
+      remote.onPushBatch = (_) async => throw Exception('Batch failed');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1576,8 +1533,7 @@ void main() {
       // but since remote.onPush throws, they should remain pending.
       final allPending = queue.allEntries.where((e) => e.isPending).toList();
       expect(allPending, isNotEmpty,
-          reason:
-              'Queue must preserve entries after push failure');
+          reason: 'Queue must preserve entries after push failure');
     });
 
     test(
@@ -1587,8 +1543,8 @@ void main() {
       final events = <SyncEvent>[];
       final remote = ConfigurableRemoteStore();
       remote.onPullSince = (table, since) async => [];
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       final local = InMemoryLocalStore();
       final engine = SyncEngine(
@@ -1607,8 +1563,7 @@ void main() {
       expect(pullEvents, isNotEmpty);
       expect(pullEvents.first.rowCount, 0,
           reason: 'Empty response should result in rowCount=0');
-      expect(local.data, isEmpty,
-          reason: 'No records should be upserted');
+      expect(local.data, isEmpty, reason: 'No records should be upserted');
     });
 
     test(
@@ -1617,10 +1572,10 @@ void main() {
       // SEVERITY: MEDIUM
       final events = <SyncEvent>[];
       final remote = ConfigurableRemoteStore();
-      remote.onPullSince = (table, since) async =>
-          throw Exception('Generic remote failure');
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onPullSince =
+          (table, since) async => throw Exception('Generic remote failure');
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1636,8 +1591,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final errors = events.whereType<SyncError>().toList();
-      expect(errors, isNotEmpty,
-          reason: 'SyncError should be emitted');
+      expect(errors, isNotEmpty, reason: 'SyncError should be emitted');
       expect(errors.first.context, contains('pull'));
     });
 
@@ -1650,8 +1604,8 @@ void main() {
       final remote = ConfigurableRemoteStore();
       remote.onPush = (_, __, ___, ____) async =>
           throw Exception('503 Service Unavailable');
-      remote.onPushBatch = (_) async =>
-          throw Exception('503 Batch Unavailable');
+      remote.onPushBatch =
+          (_) async => throw Exception('503 Batch Unavailable');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1689,8 +1643,7 @@ void main() {
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
       // Make remote push fail so we can inspect the queue
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: ThrowingLocalStore(),
@@ -1708,8 +1661,7 @@ void main() {
         caughtError = e;
       }
 
-      expect(caughtError, isNotNull,
-          reason: 'Disk full error must propagate');
+      expect(caughtError, isNotNull, reason: 'Disk full error must propagate');
 
       // The queue entry should exist because _enqueue runs before local.upsert
       final entries = queue.allEntries;
@@ -1718,9 +1670,7 @@ void main() {
               'Queue entry must exist even when local write fails (atomic ordering)');
     });
 
-    test(
-        '40. UTC timestamps: all SyncEntry.createdAt are UTC',
-        () async {
+    test('40. UTC timestamps: all SyncEntry.createdAt are UTC', () async {
       // SEVERITY: MEDIUM
       final queue = InMemoryQueueStore();
       final timestamps = InMemoryTimestampStore();
@@ -1747,14 +1697,13 @@ void main() {
       remote.onPullSince = (table, since) async => [
             {'id': 'pulled-1', 'title': 'Pulled'}
           ];
-      remote.onGetRemoteTimestamps = () async =>
-          {'tasks': DateTime.now().toUtc()};
+      remote.onGetRemoteTimestamps =
+          () async => {'tasks': DateTime.now().toUtc()};
 
       await engine.pullAll();
 
       final ts = await timestamps.get('tasks');
-      expect(ts.isUtc, isTrue,
-          reason: 'Timestamp saved by engine must be UTC');
+      expect(ts.isUtc, isTrue, reason: 'Timestamp saved by engine must be UTC');
     });
 
     test(
@@ -1775,8 +1724,7 @@ void main() {
       // We need jsonEncode(data) to be exactly `limit` bytes in UTF-8
       // Start with a base and pad
       final basePayload = {'d': ''};
-      final baseSize =
-          utf8.encode(jsonEncode(basePayload)).length; // {"d":""}
+      final baseSize = utf8.encode(jsonEncode(basePayload)).length; // {"d":""}
       final padSize = limit - baseSize;
       final exactPayload = {'d': 'x' * padSize};
       final exactSize = utf8.encode(jsonEncode(exactPayload)).length;
@@ -1794,15 +1742,13 @@ void main() {
       );
     });
 
-    test(
-        '42. Deeply nested JSON (10 levels) survives queue round-trip',
+    test('42. Deeply nested JSON (10 levels) survives queue round-trip',
         () async {
       // SEVERITY: LOW
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
       // Make push fail so entries stay pending for inspection
-      remote.onPush = (_, __, ___, ____) async =>
-          throw Exception('Offline');
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
 
       final engine = SyncEngine(
         local: InMemoryLocalStore(),
@@ -1823,7 +1769,10 @@ void main() {
         return {
           'level': depth,
           'children': [buildNested(depth - 1)],
-          'metadata': {'depth': depth, 'tags': ['a', 'b']},
+          'metadata': {
+            'depth': depth,
+            'tags': ['a', 'b']
+          },
         };
       }
 

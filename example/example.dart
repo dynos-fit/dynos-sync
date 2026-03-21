@@ -39,7 +39,7 @@ SyncEngine createSyncEngine({
       stopOnFirstError: true,
       maxRetries: 3,
       sensitiveFields: ['ssn', 'password'], // 🛡️ [NEW] mask PII in error logs
-      useExponentialBackoff: true,          // 📶 [NEW] 2, 4, 8s retry delay
+      useExponentialBackoff: true, // 📶 [NEW] 2, 4, 8s retry delay
     ),
     onError: (error, stack, context) {
       print('Sync error [$context]: $error');
@@ -61,7 +61,8 @@ Future<void> createTask(SyncEngine sync, String id, String title) async {
 }
 
 /// Pattern B: Write to your own DAO, then push via dynos_sync
-Future<void> createTaskViaDao(SyncEngine sync, Map<String, dynamic> task) async {
+Future<void> createTaskViaDao(
+    SyncEngine sync, Map<String, dynamic> task) async {
   // Your own DAO handles the local write:
   // await db.taskDao.save(Task.fromJson(task));
 
@@ -114,7 +115,6 @@ Future<void> runHeavySync(SyncEngine sync) async {
   final hardened = IsolateSyncEngine(sync);
   await hardened.syncAllInBackground();
 }
-
 
 // ─── Full setup with Drift + Supabase ───────────────────────────────────────
 //

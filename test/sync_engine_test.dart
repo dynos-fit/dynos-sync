@@ -3,12 +3,13 @@ import 'package:dynos_sync/dynos_sync.dart';
 
 class MockLocalStore implements LocalStore {
   final data = <String, Map<String, dynamic>>{};
-  
+
   @override
-  Future<void> upsert(String table, String id, Map<String, dynamic> record) async {
+  Future<void> upsert(
+      String table, String id, Map<String, dynamic> record) async {
     data['$table:$id'] = record;
   }
-  
+
   @override
   Future<void> delete(String table, String id) async {
     data.remove('$table:$id');
@@ -17,22 +18,25 @@ class MockLocalStore implements LocalStore {
 
 class BadRemoteStore implements RemoteStore {
   int pushAttempts = 0;
-  
+
   @override
-  Future<void> push(String table, String id, SyncOperation op, Map<String, dynamic> data) async {
+  Future<void> push(String table, String id, SyncOperation op,
+      Map<String, dynamic> data) async {
     pushAttempts++;
     throw Exception('Simulated Backend Validation Error (Poison Pill)');
   }
-  
+
   @override
   Future<void> pushBatch(List<SyncEntry> entries) async {
     // Force a failure to test the fallback logic
     throw Exception('Simulated Batch Failure');
   }
-  
+
   @override
-  Future<List<Map<String, dynamic>>> pullSince(String table, DateTime since) async => [];
-  
+  Future<List<Map<String, dynamic>>> pullSince(
+          String table, DateTime since) async =>
+      [];
+
   @override
   Future<Map<String, DateTime>> getRemoteTimestamps() async => {};
 }
@@ -47,16 +51,22 @@ class InMemoryQueueStore implements QueueStore {
 
   @override
   Future<List<SyncEntry>> getPending({int limit = 50, DateTime? now}) async {
-    return _queue.where((e) {
-      if (!e.isPending) return false;
-      if (now != null && e.nextRetryAt != null && e.nextRetryAt!.isAfter(now)) return false;
-      return true;
-    }).take(limit).toList();
+    return _queue
+        .where((e) {
+          if (!e.isPending) return false;
+          if (now != null &&
+              e.nextRetryAt != null &&
+              e.nextRetryAt!.isAfter(now)) return false;
+          return true;
+        })
+        .take(limit)
+        .toList();
   }
 
   @override
   Future<bool> hasPending(String table, String id) async {
-    return _queue.any((e) => e.table == table && e.recordId == id && e.isPending);
+    return _queue
+        .any((e) => e.table == table && e.recordId == id && e.isPending);
   }
 
   @override
@@ -68,7 +78,8 @@ class InMemoryQueueStore implements QueueStore {
   }
 
   @override
-  Future<List<SyncEntry>> getPendingEntries(String table, String recordId) async {
+  Future<List<SyncEntry>> getPendingEntries(
+      String table, String recordId) async {
     return _queue
         .where((e) => e.table == table && e.recordId == recordId && e.isPending)
         .toList()
@@ -87,7 +98,8 @@ class InMemoryQueueStore implements QueueStore {
   Future<void> incrementRetry(String id) async {
     final index = _queue.indexWhere((e) => e.id == id);
     if (index != -1) {
-      _queue[index] = _queue[index].copyWith(retryCount: _queue[index].retryCount + 1);
+      _queue[index] =
+          _queue[index].copyWith(retryCount: _queue[index].retryCount + 1);
     }
   }
 
@@ -105,7 +117,8 @@ class InMemoryQueueStore implements QueueStore {
   }
 
   @override
-  Future<void> purgeSynced({Duration retention = const Duration(days: 30)}) async {
+  Future<void> purgeSynced(
+      {Duration retention = const Duration(days: 30)}) async {
     _queue.removeWhere((e) => !e.isPending);
   }
 
@@ -114,14 +127,15 @@ class InMemoryQueueStore implements QueueStore {
 }
 
 void main() {
-  test('SyncEngine drops posion pill effectively after maxRetries is reached', () async {
+  test('SyncEngine drops posion pill effectively after maxRetries is reached',
+      () async {
     final local = MockLocalStore();
     final remote = BadRemoteStore();
     final queue = InMemoryQueueStore();
     final timestamps = InMemoryTimestampStore();
-    
+
     final emittedErrors = <String>[];
-    
+
     final engine = SyncEngine(
       local: local,
       remote: remote,
@@ -130,13 +144,14 @@ void main() {
       tables: ['tasks'],
       config: const SyncConfig(
         maxRetries: 3,
-        stopOnFirstError: true, // test that it breaks first 3 times, then clears it
+        stopOnFirstError:
+            true, // test that it breaks first 3 times, then clears it
       ),
       onError: (e, st, ctx) {
         emittedErrors.add(ctx);
       },
     );
-    
+
     // Helper to reset nextRetryAt so the entry is eligible for the next drain
     Future<void> clearBackoff() async {
       final entries = await queue.getPending(now: DateTime.utc(9999));
@@ -154,7 +169,8 @@ void main() {
     // We should have 1 pending item
     var pending = await queue.getPending();
     expect(pending.length, 1);
-    expect(pending.first.retryCount, 0); // Still 0 since we didn't use drain(), write raises background push exceptions silently
+    expect(pending.first.retryCount,
+        0); // Still 0 since we didn't use drain(), write raises background push exceptions silently
 
     // 2. Drain cycle 1
     await engine.drain();

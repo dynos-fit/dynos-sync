@@ -133,7 +133,8 @@ class SyncEngine {
   void _validatePayloadSize(Map<String, dynamic> data) {
     final bytes = utf8.encode(jsonEncode(data)).length;
     if (bytes > config.maxPayloadBytes) {
-      throw PayloadTooLargeException(bytes: bytes, limit: config.maxPayloadBytes);
+      throw PayloadTooLargeException(
+          bytes: bytes, limit: config.maxPayloadBytes);
     }
   }
 
@@ -271,9 +272,8 @@ class SyncEngine {
                 math.pow(2, entry.retryCount + 1).toInt(),
                 config.maxBackoff.inSeconds,
               );
-              final nextRetry = DateTime.now()
-                  .toUtc()
-                  .add(Duration(seconds: backoffSeconds));
+              final nextRetry =
+                  DateTime.now().toUtc().add(Duration(seconds: backoffSeconds));
 
               await queue.incrementRetry(entry.id);
               await queue.setNextRetryAt(entry.id, nextRetry);
@@ -363,8 +363,7 @@ class SyncEngine {
 
         // RLS pull validation
         if (userId != null) {
-          final rowOwner =
-              (row['user_id'] ?? row['owner_id'])?.toString();
+          final rowOwner = (row['user_id'] ?? row['owner_id'])?.toString();
           if (rowOwner != null && rowOwner != userId) {
             _emit(SyncError(
               timestamp: DateTime.now().toUtc(),
