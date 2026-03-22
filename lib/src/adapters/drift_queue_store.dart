@@ -8,6 +8,7 @@ import '../sync_operation.dart';
 ///
 /// Requires [DynosSyncQueueTable] to be registered in your Drift database.
 class DriftQueueStore implements QueueStore {
+  /// Creates a [DriftQueueStore] backed by the given Drift [GeneratedDatabase].
   const DriftQueueStore(this._db);
 
   final GeneratedDatabase _db;

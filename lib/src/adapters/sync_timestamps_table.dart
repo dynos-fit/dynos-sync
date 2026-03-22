@@ -24,12 +24,17 @@ const kSyncTimestampsCreateSql = '''
 /// from an external package. If you see "not understood by drift" warnings,
 /// use [kSyncTimestampsCreateSql] in your migration instead.
 class DynosSyncTimestampsTable extends Table {
+  /// The underlying SQLite table name for sync timestamps.
   @override
   String get tableName => 'dynos_sync_timestamps';
 
+  /// The name of the synced table this timestamp belongs to.
   TextColumn get tableName_ => text().named('table_name')();
+
+  /// The last time the corresponding table was successfully synced.
   DateTimeColumn get lastSyncedAt => dateTime()();
 
+  /// Uses [tableName_] as the single-column primary key.
   @override
   Set<Column> get primaryKey => {tableName_};
 }

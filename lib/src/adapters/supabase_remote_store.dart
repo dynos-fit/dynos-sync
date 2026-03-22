@@ -34,12 +34,17 @@ class SupabaseRemoteStore implements RemoteStore {
     this.tableTimestampKeys = const {},
   });
 
+  /// The Supabase client used for all remote operations.
   final SupabaseClient client;
 
   /// Returns the current user ID. Called per sync cycle to handle
   /// session expiry and account switches.
   final String Function() userId;
+
+  /// The name of the Supabase table that tracks per-user sync timestamps.
   final String syncStatusTable;
+
+  /// Maps synced table names to their corresponding timestamp column in [syncStatusTable].
   final Map<String, String> tableTimestampKeys;
 
   @override

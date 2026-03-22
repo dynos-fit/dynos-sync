@@ -6,6 +6,7 @@ import '../timestamp_store.dart';
 /// Stores per-table sync timestamps in SQLite via the
 /// `dynos_sync_timestamps` table.
 class DriftTimestampStore implements TimestampStore {
+  /// Creates a [DriftTimestampStore] backed by the given Drift [GeneratedDatabase].
   const DriftTimestampStore(this._db);
 
   final GeneratedDatabase _db;

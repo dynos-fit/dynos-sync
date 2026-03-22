@@ -7,6 +7,7 @@ import 'sync_engine.dart';
 /// Offloading [drain] and [pullAll] to an isolate ensures the main UI thread
 /// remains at 60/120 FPS even when processing thousands of JSON records.
 class IsolateSyncEngine {
+  /// Creates an [IsolateSyncEngine] that wraps the given [SyncEngine].
   IsolateSyncEngine(this._engine);
 
   final SyncEngine _engine;

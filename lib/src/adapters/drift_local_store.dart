@@ -8,6 +8,7 @@ import '../local_store.dart';
 ///
 /// **Requirement:** Tables must have a column named `id` as the primary key.
 class DriftLocalStore implements LocalStore {
+  /// Creates a [DriftLocalStore] backed by the given Drift [GeneratedDatabase].
   const DriftLocalStore(this._db);
 
   final GeneratedDatabase _db;
