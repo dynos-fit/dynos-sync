@@ -38,7 +38,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dynos_sync: ^0.1.0
+  dynos_sync: ^0.1.2
 ```
 
 ---
