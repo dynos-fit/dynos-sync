@@ -1,0 +1,19 @@
+name: Auto-Publish to Pub.dev
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    permissions:
+      id-token: write # Required for OIDC authentication
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dart-lang/setup-dart@v1
+      
+      # This step handles the secure handshake between GitHub and pub.dev
+      # You must configure your package as a "GitHub Actions Publisher" on pub.dev
+      - name: Publish to pub.dev
+        run: dart pub publish --force
