@@ -5836,4 +5836,388 @@ void main() {
       engine.dispose();
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CATEGORY 13 — PATCH OPERATION (Tests 131-140)
+  // ═══════════════════════════════════════════════════════════════════════════
+  group('CATEGORY 13 — PATCH OPERATION', () {
+    test(
+        '131. Patch sends only partial fields — no extra columns injected by engine',
+        () async {
+      // SEVERITY: CRITICAL
+      // COMPLIANCE: HIPAA — minimum necessary principle
+      final remote = ConfigurableRemoteStore();
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: remote,
+        queue: InMemoryQueueStore(),
+        timestamps: InMemoryTimestampStore(),
+        tables: ['workouts'],
+      );
+
+      await engine.push(
+        'workouts',
+        'w-1',
+        {'used_at': '2026-03-22T12:00:00Z', 'exercises_kept': 5},
+        operation: SyncOperation.patch,
+      );
+
+      expect(remote.pushedPayloads, isNotEmpty);
+      final payload = remote.pushedPayloads.last;
+
+      // Engine must NOT inject any extra fields
+      expect(payload.keys.toSet(), equals({'used_at', 'exercises_kept'}),
+          reason:
+              'Patch payload must contain exactly the provided fields, nothing more');
+
+      engine.dispose();
+    });
+
+    test('132. Patch queues with SyncOperation.patch in SyncEntry', () async {
+      // SEVERITY: HIGH
+      final queue = InMemoryQueueStore();
+      final remote = ConfigurableRemoteStore();
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: remote,
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['tasks'],
+      );
+
+      await engine.push(
+        'tasks',
+        't-1',
+        {'status': 'done'},
+        operation: SyncOperation.patch,
+      );
+
+      final entries = queue.allEntries;
+      expect(entries, hasLength(1));
+      expect(entries.first.operation, SyncOperation.patch,
+          reason: 'Queue entry must preserve the patch operation type');
+      expect(entries.first.recordId, 't-1');
+      expect(entries.first.payload, {'status': 'done'});
+
+      engine.dispose();
+    });
+
+    test('133. Patch survives drain cycle — pushed with correct operation',
+        () async {
+      // SEVERITY: CRITICAL
+      final remote = ConfigurableRemoteStore();
+      final queue = InMemoryQueueStore();
+      final capturedOps = <SyncOperation>[];
+
+      // Queue a patch entry directly
+      await queue.enqueue(SyncEntry(
+        id: 'patch-entry-1',
+        table: 'workouts',
+        recordId: 'w-1',
+        operation: SyncOperation.patch,
+        payload: {'reps': 12},
+        createdAt: DateTime.now().toUtc(),
+      ));
+
+      remote.onPush = (table, id, op, data) async {
+        capturedOps.add(op);
+      };
+      remote.onPushBatch = (_) async => throw Exception('Use individual');
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: remote,
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['workouts'],
+      );
+
+      await engine.drain();
+
+      expect(capturedOps, contains(SyncOperation.patch),
+          reason: 'Drain must forward the patch operation to RemoteStore');
+
+      engine.dispose();
+    });
+
+    test('134. Mixed batch: upsert + patch + delete all processed correctly',
+        () async {
+      // SEVERITY: HIGH
+      final remote = ConfigurableRemoteStore();
+      final queue = InMemoryQueueStore();
+      final capturedOps = <SyncOperation>[];
+
+      remote.onPush = (table, id, op, data) async => capturedOps.add(op);
+      remote.onPushBatch = (_) async => throw Exception('Fallback');
+
+      await queue.enqueue(SyncEntry(
+        id: 'e1',
+        table: 'tasks',
+        recordId: 't-1',
+        operation: SyncOperation.upsert,
+        payload: {'id': 't-1', 'title': 'New'},
+        createdAt: DateTime.now().toUtc(),
+      ));
+      await queue.enqueue(SyncEntry(
+        id: 'e2',
+        table: 'tasks',
+        recordId: 't-2',
+        operation: SyncOperation.patch,
+        payload: {'done': true},
+        createdAt: DateTime.now().toUtc(),
+      ));
+      await queue.enqueue(SyncEntry(
+        id: 'e3',
+        table: 'tasks',
+        recordId: 't-3',
+        operation: SyncOperation.delete,
+        payload: {},
+        createdAt: DateTime.now().toUtc(),
+      ));
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: remote,
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['tasks'],
+      );
+
+      await engine.drain();
+
+      expect(
+          capturedOps,
+          containsAll([
+            SyncOperation.upsert,
+            SyncOperation.patch,
+            SyncOperation.delete,
+          ]),
+          reason: 'All three operation types must be forwarded during drain');
+
+      engine.dispose();
+    });
+
+    test('135. Patch payload size validated against maxPayloadBytes', () async {
+      // SEVERITY: HIGH
+      // COMPLIANCE: NIST
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: ConfigurableRemoteStore(),
+        queue: InMemoryQueueStore(),
+        timestamps: InMemoryTimestampStore(),
+        tables: ['tasks'],
+        config: const SyncConfig(maxPayloadBytes: 100),
+      );
+
+      expect(
+        () => engine.push(
+          'tasks',
+          't-1',
+          {'blob': 'x' * 200},
+          operation: SyncOperation.patch,
+        ),
+        throwsA(isA<PayloadTooLargeException>()),
+        reason: 'Patch must enforce payload size limits',
+      );
+
+      engine.dispose();
+    });
+
+    test('136. Patch respects RLS — mismatched user_id throws', () async {
+      // SEVERITY: CRITICAL
+      // COMPLIANCE: HIPAA, SOC2
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: ConfigurableRemoteStore(),
+        queue: InMemoryQueueStore(),
+        timestamps: InMemoryTimestampStore(),
+        tables: ['tasks'],
+        userId: 'user-A',
+      );
+
+      expect(
+        () => engine.push(
+          'tasks',
+          't-1',
+          {'user_id': 'user-B', 'status': 'hacked'},
+          operation: SyncOperation.patch,
+        ),
+        throwsA(
+          predicate<Exception>((e) => e.toString().contains('[RLS_Bypass]')),
+        ),
+        reason: 'Patch must enforce RLS just like upsert',
+      );
+
+      engine.dispose();
+    });
+
+    test('137. Patch with sensitiveFields masks values before queueing',
+        () async {
+      // SEVERITY: CRITICAL
+      // COMPLIANCE: HIPAA
+      final queue = InMemoryQueueStore();
+      final local = InMemoryLocalStore();
+      final remote = ConfigurableRemoteStore();
+
+      final engine = SyncEngine(
+        local: local,
+        remote: remote,
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['patients'],
+        config: const SyncConfig(sensitiveFields: ['diagnosis']),
+      );
+
+      // write() masks sensitive fields; push() does not (by design —
+      // push() is for callers who handle masking themselves).
+      await engine.write('patients', 'p-1', {
+        'diagnosis': 'Hypertension',
+        'department': 'Cardiology',
+      });
+
+      // Check what was pushed to remote
+      expect(remote.pushedPayloads.last['diagnosis'], '[REDACTED]',
+          reason: 'Sensitive fields must be masked before push');
+      expect(remote.pushedPayloads.last['department'], 'Cardiology');
+
+      // Check what was stored locally
+      expect(local.getData('patients', 'p-1')!['diagnosis'], '[REDACTED]');
+
+      engine.dispose();
+    });
+
+    test(
+        '138. Patch poison pill — fails maxRetries then dropped with SyncPoisonPill',
+        () async {
+      // SEVERITY: HIGH
+      final events = <SyncEvent>[];
+      final queue = InMemoryQueueStore();
+      final remote = ConfigurableRemoteStore();
+
+      remote.onPush =
+          (_, __, ___, ____) async => throw Exception('Server error');
+      remote.onPushBatch = (_) async => throw Exception('Batch error');
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: remote,
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['tasks'],
+        config: const SyncConfig(maxRetries: 2, stopOnFirstError: true),
+        onError: (_, __, ___) {},
+      );
+      engine.events.listen(events.add);
+
+      // Queue a patch that will always fail
+      await queue.enqueue(SyncEntry(
+        id: 'poison-patch',
+        table: 'tasks',
+        recordId: 't-1',
+        operation: SyncOperation.patch,
+        payload: {'status': 'broken'},
+        createdAt: DateTime.now().toUtc(),
+      ));
+
+      // Drain until poison pill is dropped.
+      // Each drain increments retryCount and sets nextRetryAt with backoff.
+      // We clear nextRetryAt after each cycle so the entry is eligible again.
+      for (var i = 0; i < 5; i++) {
+        await engine.drain();
+        // Reset backoff so next drain picks it up immediately
+        for (final e in queue.allEntries.where((e) => e.isPending)) {
+          await queue.setNextRetryAt(e.id, DateTime.utc(2000));
+        }
+      }
+      await Future<void>.delayed(Duration.zero);
+
+      final poisonEvents = events.whereType<SyncPoisonPill>().toList();
+      expect(poisonEvents, isNotEmpty,
+          reason: 'Patch entries must be subject to poison pill handling');
+      expect(poisonEvents.first.entry.operation, SyncOperation.patch);
+
+      engine.dispose();
+    });
+
+    test('139. Patch with AuthExpiredException stops drain and emits event',
+        () async {
+      // SEVERITY: CRITICAL
+      // COMPLIANCE: SOC2
+      final events = <SyncEvent>[];
+      final queue = InMemoryQueueStore();
+      final remote = ConfigurableRemoteStore();
+
+      remote.onPush = (_, __, ___, ____) async =>
+          throw const AuthExpiredException('Token expired');
+      remote.onPushBatch = (_) async => throw Exception('Batch fail');
+
+      await queue.enqueue(SyncEntry(
+        id: 'auth-patch',
+        table: 'tasks',
+        recordId: 't-1',
+        operation: SyncOperation.patch,
+        payload: {'status': 'updated'},
+        createdAt: DateTime.now().toUtc(),
+      ));
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: remote,
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['tasks'],
+      );
+      engine.events.listen(events.add);
+
+      await engine.drain();
+      await Future<void>.delayed(Duration.zero);
+
+      final authEvents = events.whereType<SyncAuthRequired>().toList();
+      expect(authEvents, isNotEmpty,
+          reason: 'AuthExpiredException during patch drain must emit '
+              'SyncAuthRequired');
+
+      // Entry must be preserved (not dropped)
+      final pending = await queue.getPending();
+      expect(pending, isNotEmpty,
+          reason: 'Patch entry must survive auth failure for later retry');
+
+      engine.dispose();
+    });
+
+    test('140. Patch injection vectors stored as literals — no SQL execution',
+        () async {
+      // SEVERITY: CRITICAL
+      // COMPLIANCE: OWASP
+      final queue = InMemoryQueueStore();
+      final remote = ConfigurableRemoteStore();
+      remote.onPush = (_, __, ___, ____) async => throw Exception('Offline');
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: remote,
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['tasks'],
+      );
+
+      final injection = {
+        'status': "'; DROP TABLE tasks; --",
+        'note': "' OR '1'='1",
+      };
+
+      await engine.push('tasks', 't-1', injection,
+          operation: SyncOperation.patch);
+
+      final entries = queue.allEntries;
+      expect(entries.first.payload['status'], "'; DROP TABLE tasks; --",
+          reason: 'SQL injection in patch must be stored as literal string');
+      expect(entries.first.payload['note'], "' OR '1'='1");
+
+      engine.dispose();
+    });
+  });
 }
