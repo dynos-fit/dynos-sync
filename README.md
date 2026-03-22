@@ -8,6 +8,7 @@
 *Built by the team at [**dynos.fit**](https://dynos.fit) to power high-concurrency workout synchronization.*
 
 [![Pub.dev](https://img.shields.io/pub/v/dynos_sync)](https://pub.dev/packages/dynos_sync)
+[![Pub Points](https://img.shields.io/pub/points/dynos_sync)](https://pub.dev/packages/dynos_sync/score)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Security Audit: PASS](https://img.shields.io/badge/Security_Audit-42/42_PASS-2DD4A8)](doc/security_audit.md)
 [![Performance: Elite](https://img.shields.io/badge/Performance-10k_writes/sec-blueviolet)](#)
