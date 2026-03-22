@@ -1,6 +1,6 @@
 # Security Audit Report
 
-`dynos_sync` is subjected to a **130-test security audit** across 12 categories before every release. This document describes what is tested and why.
+`dynos_sync` is subjected to a **140-test security audit** across 13 categories before every release. This document describes what is tested and why.
 
 Test file: [`test/dynos_sync_total_audit_test.dart`](../test/dynos_sync_total_audit_test.dart)
 
@@ -22,8 +22,9 @@ Test file: [`test/dynos_sync_total_audit_test.dart`](../test/dynos_sync_total_au
 | 10. Denial of Service & Abuse | 108--114 | 1 CRITICAL, 3 HIGH, 2 MEDIUM, 1 LOW |
 | 11. OWASP Mobile Top 10 | 115--124 | Maps to OWASP M1--M10 |
 | 12. GDPR & Data Sovereignty | 125--130 | 2 CRITICAL, 2 HIGH, 1 MEDIUM, 1 LOW |
+| 13. Patch Operation | 131--140 | 4 CRITICAL, 3 HIGH, 2 MEDIUM, 1 LOW |
 
-**Total: 130 tests, 0 failures required for release.**
+**Total: 140 tests, 0 failures required for release.**
 
 ---
 
@@ -167,14 +168,29 @@ Explicit mapping to OWASP Mobile Top 10 (2024):
 - **Data residency** -- `RemoteStore` endpoint is configurable per region
 - **Transfer logging** -- event stream provides audit trail for all sync operations
 
+### 13. Patch Operation (Tests 131--140)
+
+Tests that the new `SyncOperation.patch` (partial update) is safe across all vectors:
+
+- **Partial payload integrity** -- engine sends exactly the provided fields, no extras injected
+- **Queue persistence** -- `SyncEntry` preserves the `patch` operation type through the queue
+- **Drain forwarding** -- drain correctly forwards patch operations to `RemoteStore`
+- **Mixed batch** -- upsert + patch + delete all processed correctly in a single drain cycle
+- **Payload size limits** -- `maxPayloadBytes` enforced on patch payloads
+- **RLS enforcement** -- mismatched `user_id` throws `[RLS_Bypass]` on patch, same as upsert
+- **PII masking** -- `sensitiveFields` masks values in patch payloads via `write()`
+- **Poison pill** -- patch entries dropped after `maxRetries` with `SyncPoisonPill` event
+- **Auth expiry** -- `AuthExpiredException` during patch drain stops and preserves entry
+- **SQL injection** -- injection strings in patch payloads stored as literals, not executed
+
 ---
 
 ## Pass criteria
 
 Every release must:
 
-1. Pass all 130 tests in `test/dynos_sync_total_audit_test.dart`
-2. Pass all existing tests (66 tests across 7 other test files)
+1. Pass all 140 tests in `test/dynos_sync_total_audit_test.dart`
+2. Pass all existing tests across other test files
 3. Zero `dart analyze` errors or warnings
 4. Verified compatibility with Drift and Supabase adapters
 

@@ -10,7 +10,7 @@ Built by the team at [**dynos.fit**](https://dynos.fit) to power high-concurrenc
 [![Pub.dev](https://img.shields.io/pub/v/dynos_sync)](https://pub.dev/packages/dynos_sync)
 [![Pub Points](https://img.shields.io/pub/points/dynos_sync)](https://pub.dev/packages/dynos_sync/score)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Security Audit: 130 Tests](https://img.shields.io/badge/Security_Audit-130/130_PASS-2DD4A8)](doc/security_audit.md)
+[![Security Audit: 140 Tests](https://img.shields.io/badge/Security_Audit-140/140_PASS-2DD4A8)](doc/security_audit.md)
 [![Performance: 50k+ writes/sec](https://img.shields.io/badge/Performance-50k+_writes/sec-blueviolet)](#performance)
 
 ---
@@ -41,6 +41,7 @@ Flutter App  -->  SyncEngine  -->  Local DB (Drift/SQLite)
 | **Row-Level Security** | Local RLS gate blocks writes with mismatched `user_id` |
 | **Exponential backoff** | Failed pushes retry with 2^n delays, capped at `maxBackoff` |
 | **Poison pill isolation** | Permanently failing entries are dropped after `maxRetries` |
+| **Partial updates (patch)** | `SyncOperation.patch` sends UPDATE instead of upsert — no NOT NULL failures |
 | **Batch push** | `drain()` pushes up to `batchSize` entries per cycle |
 | **Auth expiry handling** | `AuthExpiredException` emits `SyncAuthRequired` event, stops drain |
 | **Cross-user isolation** | `logout()` wipes queue, local data, and timestamps |
@@ -55,7 +56,7 @@ Flutter App  -->  SyncEngine  -->  Local DB (Drift/SQLite)
 
 ```yaml
 dependencies:
-  dynos_sync: ^0.1.2
+  dynos_sync: ^0.1.5
 ```
 
 ---
@@ -105,7 +106,17 @@ await sync.addTable('tags', pull: false);       // register only
 sync.removeTable('deprecated_table');           // stop syncing
 ```
 
-### 5. Logout
+### 5. Partial update (patch)
+
+```dart
+// Update only specific fields — no NOT NULL failures from missing columns
+await sync.push('workouts', id, {
+  'used_at': DateTime.now().toUtc().toIso8601String(),
+  'exercises_kept': 5,
+}, operation: SyncOperation.patch);
+```
+
+### 6. Logout
 
 ```dart
 await sync.logout();  // wipes queue, local data, timestamps
@@ -121,7 +132,7 @@ await sync.logout();  // wipes queue, local data, timestamps
 |---|---|
 | `write(table, id, data)` | Write locally + queue for sync |
 | `remove(table, id)` | Delete locally + queue deletion |
-| `push(table, id, data, {operation})` | Queue sync without local write (for custom DAOs) |
+| `push(table, id, data, {operation})` | Queue sync without local write. `operation`: `upsert` (default), `patch`, or `delete` |
 | `drain()` | Push all pending queue entries to remote |
 | `pullAll()` | Delta-pull changes from remote for all registered tables |
 | `syncAll()` | Full cycle: `drain()` then `pullAll()` |
@@ -217,7 +228,7 @@ Benchmarked with in-memory stores on standard hardware:
 
 ## Security
 
-The engine passes a **130-test security audit** across 12 categories:
+The engine passes a **140-test security audit** across 13 categories:
 
 - HIPAA & health data compliance (PHI masking, audit trail, session timeout)
 - Cross-user data isolation (full wipe on logout)
@@ -227,6 +238,7 @@ The engine passes a **130-test security audit** across 12 categories:
 - Flood resilience (100k parallel writes, drain lock)
 - OWASP Mobile Top 10 coverage
 - GDPR compliance (right to erasure, data minimization)
+- Patch operation safety (partial payloads, RLS, poison pill, auth expiry)
 
 See [Security Audit Report](doc/security_audit.md) for details.
 
@@ -235,7 +247,7 @@ See [Security Audit Report](doc/security_audit.md) for details.
 ## Documentation
 
 - [Architecture](doc/architecture.md) -- sync protocol, write path, pull path, security gates
-- [Security Audit](doc/security_audit.md) -- 130-test audit across 12 categories
+- [Security Audit](doc/security_audit.md) -- 140-test audit across 13 categories
 - [API example](example/example.dart) -- complete Drift + Supabase setup
 - [Security Policy](SECURITY.md) -- vulnerability reporting
 

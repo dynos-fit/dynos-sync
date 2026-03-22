@@ -70,7 +70,21 @@ Future<void> createTaskViaDao(
   await sync.push('tasks', task['id'] as String, task);
 }
 
-/// Pattern C: Delete a record
+/// Pattern C: Partial update (patch) — only sends changed fields
+Future<void> markTaskDone(SyncEngine sync, String id) async {
+  // Updates only these columns via UPDATE, not upsert.
+  // Avoids NOT NULL failures from missing columns.
+  await sync.push(
+      'tasks',
+      id,
+      {
+        'done': true,
+        'finished_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      operation: SyncOperation.patch);
+}
+
+/// Pattern D: Delete a record
 Future<void> deleteTask(SyncEngine sync, String id) async {
   await sync.remove('tasks', id);
   // Deleted locally + queued for remote deletion.

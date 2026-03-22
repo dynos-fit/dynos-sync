@@ -50,6 +50,19 @@ Key design decisions:
 
 `push(table, id, data)` queues a sync entry without writing locally. Use this when your own DAO handles the local write and you just need the remote sync.
 
+### Patch (partial update)
+
+`push(table, id, data, operation: SyncOperation.patch)` queues a partial update. On the remote, this sends an `UPDATE ... WHERE id = ?` instead of an upsert. This avoids NOT NULL constraint failures when you only need to update a few fields on an existing row:
+
+```dart
+await sync.push('workouts', id, {
+  'used_at': DateTime.now().toUtc().toIso8601String(),
+  'exercises_kept': 5,
+}, operation: SyncOperation.patch);
+```
+
+The `SupabaseRemoteStore` implements patch via `.update(data).eq('id', id)`. In batch mode, patches are sent individually since Supabase has no batch update API.
+
 ### remove()
 
 `remove(table, id)` queues a `SyncOperation.delete` entry and deletes from the local store.
