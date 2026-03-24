@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # (Optional) Checkout if you need specific logic, but release-drafter doesn't strictly need it for labels
-      - uses: release-drafter/release-drafter@v5
+      - uses: release-drafter/release-drafter@v7
         with:
           # config-name: .github/release-drafter.yml # Optional, defaults to this
           disable-autolabeler: false
