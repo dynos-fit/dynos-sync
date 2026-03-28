@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.1.6 (2026-03-28)
+*   **Real background isolate**: `IsolateSyncEngine` now uses `Isolate.run()` with an `engineFactory` constructor for true off-main-thread sync. Previous implementation was a non-functional stub.
+*   **Dead code removal**: Removed unused `_getRetryDelay` helper from `SyncEngine`.
+*   **Test audit**: Updated test suite header to correctly reflect 140 tests across 13 categories.
+
 ## 0.1.5 (2026-03-22)
 *   **Patch operation**: Added `SyncOperation.patch` for partial updates. Sends UPDATE instead of upsert, avoiding NOT NULL constraint failures when only a few fields change.
 *   Updated `SupabaseRemoteStore` to handle patch in both `push()` and `pushBatch()`.
