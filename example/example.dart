@@ -140,8 +140,24 @@ Future<void> registerNewTable(SyncEngine sync) async {
 
 /// For massive datasets (10k+ rows), run the sync in a background isolate.
 /// This ensures the primary UI thread remains silky smooth (60/120 FPS).
-Future<void> runHeavySync(SyncEngine sync) async {
-  final hardened = IsolateSyncEngine(sync);
+///
+/// Pass a factory function that constructs the engine — Dart isolates cannot
+/// share live database objects, so the engine is re-created inside the isolate.
+Future<void> runHeavySync({
+  required LocalStore Function() localFactory,
+  required RemoteStore Function() remoteFactory,
+  required QueueStore Function() queueFactory,
+  required TimestampStore Function() timestampsFactory,
+}) async {
+  final hardened = IsolateSyncEngine(
+    engineFactory: () => SyncEngine(
+      local: localFactory(),
+      remote: remoteFactory(),
+      queue: queueFactory(),
+      timestamps: timestampsFactory(),
+      tables: ['tasks', 'notes'],
+    ),
+  );
   await hardened.syncAllInBackground();
 }
 

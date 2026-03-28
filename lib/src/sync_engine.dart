@@ -132,13 +132,6 @@ class SyncEngine {
     return masked;
   }
 
-  // ignore: unused_element
-  Duration _getRetryDelay(int attempt) {
-    if (!config.useExponentialBackoff) return Duration.zero;
-    // 2, 4, 8, 16... seconds
-    return Duration(seconds: math.max(1, 1 << attempt));
-  }
-
   /// Extract an `updated_at` timestamp from a data map.
   DateTime? _extractTimestamp(Map<String, dynamic> data) {
     final value = data['updated_at'];

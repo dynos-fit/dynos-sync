@@ -202,7 +202,7 @@ SyncEngine createEngine({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MAIN TEST SUITE — 130 Tests Across 12 Categories
+// MAIN TEST SUITE — 140 Tests Across 13 Categories
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void main() {
@@ -3041,22 +3041,20 @@ void main() {
       // COMPLIANCE: Architecture — isolate boundary documentation
       // IsolateSyncEngine exists as a wrapper. The engine itself is single-isolate.
       // This is a structural assertion — IsolateSyncEngine compiles and wraps SyncEngine.
-      final engine = SyncEngine(
-        local: InMemoryLocalStore(),
-        remote: ConfigurableRemoteStore(),
-        queue: InMemoryQueueStore(),
-        timestamps: InMemoryTimestampStore(),
-        tables: ['tasks'],
+      final isolateEngine = IsolateSyncEngine(
+        engineFactory: () => SyncEngine(
+          local: InMemoryLocalStore(),
+          remote: ConfigurableRemoteStore(),
+          queue: InMemoryQueueStore(),
+          timestamps: InMemoryTimestampStore(),
+          tables: ['tasks'],
+        ),
       );
-
-      final isolateEngine = IsolateSyncEngine(engine);
 
       // IsolateSyncEngine has syncAllInBackground method
       expect(isolateEngine, isNotNull,
           reason:
               'IsolateSyncEngine wraps SyncEngine for background isolate usage');
-
-      engine.dispose();
     });
 
     test(
@@ -3832,7 +3830,7 @@ void main() {
         tables: ['tasks'],
       );
 
-      final isolateWrapper = IsolateSyncEngine(engine);
+      final isolateWrapper = IsolateSyncEngine(engineFactory: () => engine);
       expect(isolateWrapper, isNotNull,
           reason:
               'IsolateSyncEngine wraps the engine — isolate death does not corrupt main engine');
