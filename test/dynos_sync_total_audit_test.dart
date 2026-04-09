@@ -1289,8 +1289,8 @@ void main() {
       final hugeValue = 'x' * (50 * 1024 * 1024);
       final hugePayload = {'blob': hugeValue};
 
-      expect(
-        () => engine.write('uploads', 'u1', hugePayload),
+      await expectLater(
+        engine.write('uploads', 'u1', hugePayload),
         throwsA(isA<PayloadTooLargeException>()),
         reason: '50MB payload must trigger PayloadTooLargeException',
       );
