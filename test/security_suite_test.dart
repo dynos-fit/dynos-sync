@@ -1741,7 +1741,7 @@ void main() {
       // One byte over — should throw
       final overPayload = {'d': 'x' * (padSize + 1)};
       expect(
-        () => engine.write('tasks', 't2', overPayload),
+        () async => await engine.write('tasks', 't2', overPayload),
         throwsA(isA<PayloadTooLargeException>()),
       );
     });
