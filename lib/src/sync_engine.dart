@@ -204,10 +204,13 @@ class SyncEngine {
     Map<String, dynamic> data, {
     SyncOperation operation = SyncOperation.upsert,
   }) async {
-    // Validate payload size before anything
-    _validatePayloadSize(data);
+    // 🛡️ Scrub PII before anything else
+    final maskedData = _maskPayload(data);
 
-    await _enqueue(table, id, operation, data);
+    // Validate payload size after scrubbing
+    _validatePayloadSize(maskedData);
+
+    await _enqueue(table, id, operation, maskedData);
   }
 
   // ── Drain (push pending) ──────────────────────────────────────────────────
@@ -331,7 +334,7 @@ class SyncEngine {
       for (final table in tables) {
         final remoteTime = remoteTs[table];
         if (remoteTime == null) {
-          // No remote timestamp — pull unconditionally with epoch
+          // No remote timestamp — pull unconditionally (defaults to epoch if never synced)
           pulls.add(_pullTable(table, await timestamps.get(table)));
           continue;
         }

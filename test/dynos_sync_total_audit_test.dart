@@ -6069,8 +6069,7 @@ void main() {
         config: const SyncConfig(sensitiveFields: ['diagnosis']),
       );
 
-      // write() masks sensitive fields; push() does not (by design —
-      // push() is for callers who handle masking themselves).
+      // write() masks sensitive fields; push() also masks (security fix).
       await engine.write('patients', 'p-1', {
         'diagnosis': 'Hypertension',
         'department': 'Cardiology',
