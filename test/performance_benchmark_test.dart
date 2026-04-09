@@ -67,6 +67,28 @@ class FastInMemoryLocal implements LocalStore {
   Future<void> delete(String n, String i) async {}
 }
 
+class FastInMemoryRemote implements RemoteStore {
+  @override
+  Future<void> push(String t, String id, SyncOperation op,
+      Map<String, dynamic> data) async {}
+  @override
+  Future<void> pushBatch(List<SyncEntry> entries) async {}
+  @override
+  Future<List<Map<String, dynamic>>> pullSince(
+          String table, DateTime since) async =>
+      [];
+  @override
+  Future<Map<String, DateTime>> getRemoteTimestamps() async => {};
+}
+
+class FastInMemoryTimestamp implements TimestampStore {
+  @override
+  Future<DateTime> get(String t) async =>
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+  @override
+  Future<void> set(String t, DateTime ts) async {}
+}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(SyncOperation.upsert);
@@ -78,9 +100,9 @@ void main() {
       final queue = FastInMemoryQueue();
       final engine = SyncEngine(
         local: FastInMemoryLocal(),
-        remote: MockRemoteStore(),
+        remote: FastInMemoryRemote(),
         queue: queue,
-        timestamps: MockTimestampStore(),
+        timestamps: FastInMemoryTimestamp(),
         tables: ['tasks'],
       );
 
