@@ -1459,12 +1459,6 @@ void main() {
       // Since drain uses DateTime.now(), and our InMemoryQueueStore filters by now,
       // we need to drain and check retryScheduled events.
 
-      final retryEvents = <SyncRetryScheduled>[];
-      engine.events
-          .where((e) => e is SyncRetryScheduled)
-          .cast<SyncRetryScheduled>()
-          .listen(retryEvents.add);
-
       // For each drain cycle, we need the entry to be eligible.
       // After backoff is set, the entry won't be returned by getPending until now > nextRetryAt.
       // Since we're running in tests and DateTime.now() progresses naturally,
