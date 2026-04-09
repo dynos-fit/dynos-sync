@@ -187,11 +187,11 @@ class SyncEngine {
 
   /// Delete a record locally and queue the deletion for push.
   Future<void> remove(String table, String id) async {
-    // 1. Queue deletion
-    await _enqueue(table, id, SyncOperation.delete, {});
-
-    // 2. Remove locally
+    // 1. Remove locally first — if this fails, nothing is queued
     await local.delete(table, id);
+
+    // 2. Queue deletion for remote sync
+    await _enqueue(table, id, SyncOperation.delete, {});
   }
 
   /// Queue a push without writing locally.
