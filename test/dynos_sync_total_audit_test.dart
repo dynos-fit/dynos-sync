@@ -6077,6 +6077,7 @@ void main() {
       });
 
       // Check what was pushed to remote
+      expect(remote.pushedPayloads, isNotEmpty);
       expect(remote.pushedPayloads.last['diagnosis'], '[REDACTED]',
           reason: 'Sensitive fields must be masked before push');
       expect(remote.pushedPayloads.last['department'], 'Cardiology');
