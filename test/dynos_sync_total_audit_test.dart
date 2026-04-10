@@ -120,8 +120,11 @@ class InMemoryQueueStore implements QueueStore {
 
   @override
   Future<void> purgeSynced(
-          {Duration retention = const Duration(days: 30)}) async =>
-      _queue.removeWhere((e) => !e.isPending);
+      {Duration retention = const Duration(days: 30)}) async {
+    final cutoff = DateTime.now().toUtc().subtract(retention);
+    _queue.removeWhere((e) =>
+        e.syncedAt != null && !e.syncedAt!.isAfter(cutoff));
+  }
 
   @override
   Future<void> clearAll() async => _queue.clear();
@@ -2808,7 +2811,10 @@ void main() {
         queue: queue,
         timestamps: InMemoryTimestampStore(),
         tables: ['tasks'],
-        config: const SyncConfig(batchSize: 50),
+        config: const SyncConfig(
+          batchSize: 50,
+          queueRetention: Duration.zero,
+        ),
       );
 
       // Make best-effort push fail so entries stay pending for drain
