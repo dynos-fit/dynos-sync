@@ -122,7 +122,7 @@ class SyncEngine {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   Map<String, dynamic> _maskPayload(Map<String, dynamic> data) {
-    if (config.sensitiveFields.isEmpty) return data;
+    if (config.sensitiveFields.isEmpty) return Map<String, dynamic>.from(data);
     final masked = Map<String, dynamic>.from(data);
     for (final field in config.sensitiveFields) {
       if (masked.containsKey(field)) {
@@ -165,33 +165,36 @@ class SyncEngine {
 
   /// Write a record locally and queue it for push to the remote.
   ///
-  /// **Military Grade Fix:** Operation is now explicitly ordered to ensure
-  /// the sync queue entry exists before the local write completes.
+  /// Local write happens first. If it throws, nothing is queued — no
+  /// orphaned remote push is left for data that never landed locally.
   Future<void> write(
     String table,
     String id,
     Map<String, dynamic> data,
   ) async {
-    // 🛡️ Scrub PII before anything else
     final maskedData = _maskPayload(data);
-
-    // Validate payload size after scrubbing (just in case)
     _validatePayloadSize(maskedData);
 
-    // 1. Queue it (includes RLS check)
-    await _enqueue(table, id, SyncOperation.upsert, maskedData);
+    // RLS check before any state change so a bad-owner row is rejected
+    // before it touches the local store or the queue.
+    _checkRls(maskedData);
 
-    // 2. Write it locally
+    // 1. Write locally. If this throws, we never enqueue.
     await local.upsert(table, id, maskedData);
+
+    // 2. Queue for remote push (best-effort push included).
+    await _enqueue(table, id, SyncOperation.upsert, maskedData);
   }
 
   /// Delete a record locally and queue the deletion for push.
+  ///
+  /// Local delete happens first. If it throws, nothing is queued.
   Future<void> remove(String table, String id) async {
-    // 1. Queue deletion
-    await _enqueue(table, id, SyncOperation.delete, {});
-
-    // 2. Remove locally
+    // 1. Delete locally. If this throws, we never enqueue.
     await local.delete(table, id);
+
+    // 2. Queue deletion for remote push.
+    await _enqueue(table, id, SyncOperation.delete, {});
   }
 
   /// Queue a push without writing locally.
@@ -204,10 +207,9 @@ class SyncEngine {
     Map<String, dynamic> data, {
     SyncOperation operation = SyncOperation.upsert,
   }) async {
-    // Validate payload size before anything
-    _validatePayloadSize(data);
-
-    await _enqueue(table, id, operation, data);
+    final maskedData = _maskPayload(data);
+    _validatePayloadSize(maskedData);
+    await _enqueue(table, id, operation, maskedData);
   }
 
   // ── Drain (push pending) ──────────────────────────────────────────────────
@@ -331,7 +333,7 @@ class SyncEngine {
       for (final table in tables) {
         final remoteTime = remoteTs[table];
         if (remoteTime == null) {
-          // No remote timestamp — pull unconditionally with epoch
+          // No remote timestamp — pull unconditionally (defaults to epoch if never synced)
           pulls.add(_pullTable(table, await timestamps.get(table)));
           continue;
         }
@@ -447,6 +449,9 @@ class SyncEngine {
     final localPayload = localEntry?.payload ?? <String, dynamic>{};
     Map<String, dynamic> resolved;
     ConflictStrategy strategyUsed = config.conflictStrategy;
+    // Track the server-won decision explicitly — `identical()` is unreliable
+    // when a custom resolver returns a merged copy of remoteRow.
+    bool serverWon = false;
 
     switch (config.conflictStrategy) {
       case ConflictStrategy.lastWriteWins:
@@ -458,16 +463,19 @@ class SyncEngine {
             resolved = localPayload;
           } else {
             resolved = remoteRow;
+            serverWon = true;
           }
         } else {
           // No timestamps available — server wins as safe default
           resolved = remoteRow;
+          serverWon = true;
           strategyUsed = ConflictStrategy.serverWins;
         }
         break;
 
       case ConflictStrategy.serverWins:
         resolved = remoteRow;
+        serverWon = true;
         break;
 
       case ConflictStrategy.clientWins:
@@ -492,8 +500,8 @@ class SyncEngine {
     // Upsert the winner locally
     await local.upsert(table, id, resolved);
 
-    // If server won, delete local queue entries for this record
-    final serverWon = identical(resolved, remoteRow);
+    // If server won, delete local queue entries so they aren't re-pushed
+    // on the next drain and don't clobber the server-chosen value.
     if (serverWon) {
       for (final entry in localEntries) {
         await queue.deleteEntry(entry.id);
@@ -533,21 +541,27 @@ class SyncEngine {
 
   // ── Internal ──────────────────────────────────────────────────────────────
 
+  /// Throws if [data] carries a `user_id` / `owner_id` that does not match
+  /// [userId]. Extracted so callers can run the check before touching
+  /// [local] — otherwise reversed write ordering would let another user's
+  /// row land in the local store before the check fires.
+  void _checkRls(Map<String, dynamic> data) {
+    if (userId == null) return;
+    final ownerId = data['user_id'] ?? data['owner_id'];
+    if (ownerId != null && ownerId != userId) {
+      throw Exception(
+        'Security Error: [RLS_Bypass] row owner ($ownerId) does not match authenticated user ($userId)',
+      );
+    }
+  }
+
   Future<void> _enqueue(
     String table,
     String id,
     SyncOperation operation,
     Map<String, dynamic> data,
   ) async {
-    // Row-Level Security (RLS) local bypass check
-    if (userId != null) {
-      final ownerId = data['user_id'] ?? data['owner_id'];
-      if (ownerId != null && ownerId != userId) {
-        throw Exception(
-          'Security Error: [RLS_Bypass] row owner ($ownerId) does not match authenticated user ($userId)',
-        );
-      }
-    }
+    _checkRls(data);
 
     final entry = SyncEntry(
       id: _uuid.v4(),

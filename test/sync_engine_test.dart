@@ -121,7 +121,9 @@ class InMemoryQueueStore implements QueueStore {
   @override
   Future<void> purgeSynced(
       {Duration retention = const Duration(days: 30)}) async {
-    _queue.removeWhere((e) => !e.isPending);
+    final cutoff = DateTime.now().toUtc().subtract(retention);
+    _queue.removeWhere(
+        (e) => e.syncedAt != null && !e.syncedAt!.isAfter(cutoff));
   }
 
   @override

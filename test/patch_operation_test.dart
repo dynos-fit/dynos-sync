@@ -274,7 +274,7 @@ void main() {
         config: const SyncConfig(sensitiveFields: ['email']),
       );
 
-      // write() applies PII masking; push() does not (by design).
+      // Both write() and push() apply PII masking.
       await engine.write('profiles', 'p-1', {
         'email': 'new@email.com',
         'display_name': 'Updated',
