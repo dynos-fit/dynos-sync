@@ -8,9 +8,6 @@ class MockRemoteStore extends Mock implements RemoteStore {}
 
 class MockLocalStore extends Mock implements LocalStore {}
 
-@override
-Future<void> clearAll(List<String> t) async {}
-
 class MockQueueStore extends Mock implements QueueStore {}
 
 class MockTimestampStore extends Mock implements TimestampStore {}
@@ -42,7 +39,8 @@ class FastInMemoryQueue implements QueueStore {
       .toList()
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   @override
-  Future<bool> hasPending(String t, String id) async => false;
+  Future<bool> hasPending(String t, String id) async =>
+      _queue.any((e) => e.table == t && e.recordId == id && e.isPending);
   @override
   Future<void> markSynced(String id) async {}
   @override
