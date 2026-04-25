@@ -231,12 +231,14 @@ class SyncEngine {
 
       if (pending.isEmpty) return;
 
+      // Try to sync everything in a single batch API call.
+      // Only pushBatch is inside the try — markSynced is intentionally
+      // outside so a local DB failure can't be mistaken for a batch failure
+      // and trigger re-pushing data the remote already accepted.
+      var batchSucceeded = false;
       try {
-        // Try to sync everything in a single batch API call.
         await remote.pushBatch(pending);
-        for (final entry in pending) {
-          await queue.markSynced(entry.id);
-        }
+        batchSucceeded = true;
       } on AuthExpiredException catch (e) {
         _emit(SyncAuthRequired(
           timestamp: DateTime.now().toUtc(),
@@ -244,6 +246,14 @@ class SyncEngine {
         ));
         return;
       } catch (_) {
+        // batch failed — fall through to individual processing below
+      }
+
+      if (batchSucceeded) {
+        for (final entry in pending) {
+          await queue.markSynced(entry.id);
+        }
+      } else {
         // Fallback: If the batch fails, process individually to isolate
         // the "poison pill" and allow the rest to sync.
         for (final entry in pending) {

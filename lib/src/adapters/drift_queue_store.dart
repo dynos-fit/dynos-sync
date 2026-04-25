@@ -139,7 +139,7 @@ class DriftQueueStore implements QueueStore {
       id: row.read<String>('id'),
       table: row.read<String>('table_name'),
       recordId: row.read<String>('record_id'),
-      operation: SyncOperation.values.byName(row.read<String>('operation')),
+      operation: _decodeOperation(row.read<String>('operation')),
       payload: _decodePayload(row.read<String>('payload')),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         row.read<int>('created_at'),
@@ -159,6 +159,14 @@ class DriftQueueStore implements QueueStore {
             )
           : null,
     );
+  }
+
+  static SyncOperation _decodeOperation(String raw) {
+    try {
+      return SyncOperation.values.byName(raw);
+    } on ArgumentError catch (e) {
+      throw SyncDeserializationException(e);
+    }
   }
 
   static Map<String, dynamic> _decodePayload(String raw) {
