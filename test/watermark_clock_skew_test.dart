@@ -45,7 +45,8 @@ class _NoopQueue implements QueueStore {
   @override
   Future<void> deleteEntry(String id) async {}
   @override
-  Future<void> purgeSynced({Duration retention = const Duration(days: 30)}) async {}
+  Future<void> purgeSynced(
+      {Duration retention = const Duration(days: 30)}) async {}
   @override
   Future<void> clearAll() async {}
 }
@@ -66,8 +67,8 @@ class _ServerRemote implements RemoteStore {
   final DateTime serverUpdatedAt;
 
   @override
-  Future<void> push(String t, String id, SyncOperation op,
-      Map<String, dynamic> d) async {}
+  Future<void> push(
+      String t, String id, SyncOperation op, Map<String, dynamic> d) async {}
   @override
   Future<void> pushBatch(List<SyncEntry> e) async {}
 
@@ -106,7 +107,8 @@ void main() {
     await engine.pullAll();
 
     final watermark = timestamps.map['tasks'];
-    expect(watermark, isNotNull, reason: 'watermark must be advanced after a pull');
+    expect(watermark, isNotNull,
+        reason: 'watermark must be advanced after a pull');
 
     // The fix: watermark equals the server row's updated_at.
     expect(watermark, equals(serverTs));
@@ -124,7 +126,8 @@ void main() {
     // A remote that returns a row with no parseable updated_at must not let the
     // engine guess now() — leaving the watermark lets the row re-pull safely.
     final timestamps = _MemTimestamps();
-    timestamps.map['tasks'] = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    timestamps.map['tasks'] =
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
     final engine = SyncEngine(
       local: _MemLocal(),
@@ -143,12 +146,13 @@ void main() {
 
 class _NoUpdatedAtRemote implements RemoteStore {
   @override
-  Future<void> push(String t, String id, SyncOperation op,
-      Map<String, dynamic> d) async {}
+  Future<void> push(
+      String t, String id, SyncOperation op, Map<String, dynamic> d) async {}
   @override
   Future<void> pushBatch(List<SyncEntry> e) async {}
   @override
-  Future<List<Map<String, dynamic>>> pullSince(String t, DateTime since) async =>
+  Future<List<Map<String, dynamic>>> pullSince(
+          String t, DateTime since) async =>
       [
         {'id': 'row-1', 'name': 'no timestamp'},
       ];
