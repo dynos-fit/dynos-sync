@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.1.7 (2026-08-27)
+*   **Fix (data integrity)**: `SyncEngine._pullTable` now derives each table's delta watermark from the newest **server** `updated_at` in the pulled rows, instead of the device wall clock (`DateTime.now()`). A device whose clock ran ahead of the server would persist a future watermark, after which `pullSince`'s `updated_at > since` filter silently skipped every row the server committed in the gap — unbounded, permanent data loss. If no pulled row carries a parseable `updated_at`, the watermark is left unchanged (safe re-pull) rather than guessing `now()`.
+*   Added `test/watermark_clock_skew_test.dart` regression suite.
+
 ## 0.1.6 (2026-03-28)
 *   **Real background isolate**: `IsolateSyncEngine` now uses `Isolate.run()` with an `engineFactory` constructor for true off-main-thread sync. Previous implementation was a non-functional stub.
 *   **Dead code removal**: Removed unused `_getRetryDelay` helper from `SyncEngine`.
