@@ -1083,6 +1083,10 @@ void main() {
           () async => {'tasks': DateTime.now().toUtc()};
 
       await engine.pullAll();
+      // Flush the broadcast event stream: SyncConflict is emitted synchronously
+      // inside the delete-wins path (which has no internal await), so let its
+      // listener microtask run before asserting.
+      await Future<void>.delayed(Duration.zero);
 
       final conflicts = events.whereType<SyncConflict>().toList();
       expect(conflicts, isNotEmpty);
