@@ -415,7 +415,29 @@ class SyncEngine {
         upsertedCount++;
       }
 
-      await timestamps.set(table, DateTime.now().toUtc());
+      // Advance the delta watermark from the newest *server* `updated_at`
+      // we actually observed — never the device wall clock. Deriving it from
+      // `DateTime.now()` lets a device whose clock runs ahead of the server
+      // persist a future watermark, after which `pullSince`'s
+      // `updated_at > since` filter silently skips every row the server
+      // commits in that gap — unbounded, permanent data loss for that device.
+      // Server timestamps are the only clock the `.gt(updated_at, since)`
+      // comparison is valid against. Every row here already satisfies
+      // `updated_at > since`, so this advances the watermark monotonically.
+      DateTime? maxServerTs;
+      for (final row in rows) {
+        final ts = _extractTimestamp(row);
+        if (ts != null && (maxServerTs == null || ts.isAfter(maxServerTs))) {
+          maxServerTs = ts;
+        }
+      }
+      // If no pulled row carried a parseable `updated_at`, leave the watermark
+      // unchanged rather than guessing `now()`: worst case we re-pull these
+      // same rows next cycle (idempotent upsert), which is strictly safer than
+      // advancing past server writes we have not seen.
+      if (maxServerTs != null) {
+        await timestamps.set(table, maxServerTs);
+      }
 
       _emit(SyncPullComplete(
         timestamp: DateTime.now().toUtc(),
