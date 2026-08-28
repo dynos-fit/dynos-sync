@@ -32,6 +32,12 @@ class SyncConfig {
   final int maxRetries;
 
   /// Fields to mask in logs and telemetry (e.g. ['email', 'ssn']).
+  ///
+  /// Masking applies **only** to error contexts passed to
+  /// `SyncEngine.onError` and emitted sync events. It never alters the
+  /// payload written to the local store or pushed to the remote — prior to
+  /// 0.1.8 it incorrectly did, silently persisting '[REDACTED]' in place of
+  /// real values.
   final List<String> sensitiveFields;
 
   /// If true, uses exponential backoff (2^n) during retries.

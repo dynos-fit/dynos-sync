@@ -172,18 +172,22 @@ class SyncEngine {
     String id,
     Map<String, dynamic> data,
   ) async {
-    final maskedData = _maskPayload(data);
-    _validatePayloadSize(maskedData);
+    // [SyncConfig.sensitiveFields] masking applies only to telemetry
+    // (error contexts) — never to the payload that is stored or pushed.
+    // Masking here would destroy the real values both locally and on the
+    // remote (they'd be persisted as the literal string '[REDACTED]').
+    final payload = Map<String, dynamic>.from(data);
+    _validatePayloadSize(payload);
 
     // RLS check before any state change so a bad-owner row is rejected
     // before it touches the local store or the queue.
-    _checkRls(maskedData);
+    _checkRls(payload);
 
     // 1. Write locally. If this throws, we never enqueue.
-    await local.upsert(table, id, maskedData);
+    await local.upsert(table, id, payload);
 
     // 2. Queue for remote push (best-effort push included).
-    await _enqueue(table, id, SyncOperation.upsert, maskedData);
+    await _enqueue(table, id, SyncOperation.upsert, payload);
   }
 
   /// Delete a record locally and queue the deletion for push.
@@ -207,9 +211,11 @@ class SyncEngine {
     Map<String, dynamic> data, {
     SyncOperation operation = SyncOperation.upsert,
   }) async {
-    final maskedData = _maskPayload(data);
-    _validatePayloadSize(maskedData);
-    await _enqueue(table, id, operation, maskedData);
+    // As in [write], sensitiveFields masking is telemetry-only — the queued
+    // payload must carry the real values or the remote receives '[REDACTED]'.
+    final payload = Map<String, dynamic>.from(data);
+    _validatePayloadSize(payload);
+    await _enqueue(table, id, operation, payload);
   }
 
   // ── Drain (push pending) ──────────────────────────────────────────────────
@@ -278,9 +284,11 @@ class SyncEngine {
                 st,
                 'drain_poison_pill[${entry.table}/${entry.recordId}] permanently failed',
               );
+              // The queue holds the real payload (masking is telemetry-only),
+              // so mask here — the event stream is a telemetry surface.
               _emit(SyncPoisonPill(
                 timestamp: DateTime.now().toUtc(),
-                entry: entry,
+                entry: entry.copyWith(payload: _maskPayload(entry.payload)),
               ));
               await queue.deleteEntry(entry.id);
             } else {

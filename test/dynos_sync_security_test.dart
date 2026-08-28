@@ -115,7 +115,9 @@ void main() {
   });
 
   group('CATEGORY 2 — DATA LEAKS (Payload & Log Exposure)', () {
-    test('6. Payload Regex: Auth tokens must NEVER leak into JSON push body',
+    test(
+        '6. Payload integrity: sensitiveFields does not rewrite the push body '
+        '(log scrubbing only — see test 7-8; callers omit true secrets)',
         () async {
       final remote = getStubbedRemote();
       final engine = SyncEngine(
@@ -127,16 +129,21 @@ void main() {
         config: const SyncConfig(sensitiveFields: ['token']),
       );
 
-      final attack = {'title': 'My Token Is Secret', 'token': 'abc-def-123'};
-      await engine.write('tasks', '1', attack);
+      // Prior to 0.1.8, listing a field in sensitiveFields caused the
+      // engine to push the literal string '[REDACTED]' in its place —
+      // silently corrupting the remote copy of the record. The push body
+      // must carry the data as given; keeping a secret off the server
+      // means not putting it in the payload.
+      final data = {'title': 'My Token Is Secret', 'token': 'abc-def-123'};
+      await engine.write('tasks', '1', data);
 
       final captured =
           verify(() => remote.push(any(), any(), any(), captureAny()))
               .captured
               .first as Map<String, dynamic>;
 
-      expect(captured['token'], isNot('abc-def-123'));
-      expect(captured['token'], contains('[REDACTED]'));
+      expect(captured['token'], 'abc-def-123');
+      expect(captured['title'], 'My Token Is Secret');
     });
 
     test('7-8. Log PII Scrubbing: Capturing error logs during failure',

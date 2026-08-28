@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.1.8 (2026-08-28)
+*   **Fix (data corruption)**: `SyncEngine.write()` and `SyncEngine.push()` no longer apply `SyncConfig.sensitiveFields` masking to the payload that is persisted locally and queued for remote push. Any field listed in `sensitiveFields` was silently replaced with the literal string `'[REDACTED]'` in the local store (`write()` path) and in every pushed payload — permanently destroying the real values on the remote, or failing the push outright on non-text columns (e.g. `numeric`/`double precision` reject the string, leaving the queue stuck retrying). Masking now applies **only** where it was documented to: error contexts passed to `onError` and emitted sync events. Callers who need a field kept off the server entirely should omit it from the payload.
+*   Updated the three tests that asserted masked payloads were stored/pushed; added regression tests pinning real-value passthrough for both `write()` and `push()`.
+
 ## 0.1.7 (2026-08-27)
 *   **Fix (data integrity)**: `SyncEngine._pullTable` now derives each table's delta watermark from the newest **server** `updated_at` in the pulled rows, instead of the device wall clock (`DateTime.now()`). A device whose clock ran ahead of the server would persist a future watermark, after which `pullSince`'s `updated_at > since` filter silently skipped every row the server committed in the gap — unbounded, permanent data loss. If no pulled row carries a parseable `updated_at`, the watermark is left unchanged (safe re-pull) rather than guessing `now()`.
 *   Added `test/watermark_clock_skew_test.dart` regression suite.

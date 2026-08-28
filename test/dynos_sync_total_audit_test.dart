@@ -275,10 +275,19 @@ void main() {
     });
 
     test(
-        '3. PHI in sync payloads — sensitiveFields masks health data before push',
+        '3. PHI in sync payloads — sensitiveFields never corrupts pushed data '
+        '(masking is telemetry-only; PHI exclusion is the caller\'s job)',
         () async {
       // SEVERITY: CRITICAL
-      // COMPLIANCE: HIPAA
+      // COMPLIANCE: HIPAA / data integrity
+      //
+      // sensitiveFields exists to scrub PHI out of error logs and telemetry
+      // (covered by test 4 below). It must NOT rewrite the sync payload:
+      // prior to 0.1.8 it replaced listed fields with the literal string
+      // '[REDACTED]' in both the local store and the remote push, silently
+      // destroying the user's data. A field that must never reach the
+      // server should be omitted from the payload by the caller, not
+      // corrupted in transit.
 
       final remote = ConfigurableRemoteStore();
       final engine = createEngine(
@@ -301,18 +310,15 @@ void main() {
       expect(remote.pushedPayloads, isNotEmpty);
       final pushed = remote.pushedPayloads.last;
 
-      expect(pushed['diagnosis'], '[REDACTED]',
-          reason: 'Diagnosis must be redacted before push');
-      expect(pushed['ssn'], '[REDACTED]',
-          reason: 'SSN must be redacted before push');
-      expect(pushed['blood_type'], '[REDACTED]',
-          reason: 'Blood type must be redacted before push');
-      expect(pushed['medications'], '[REDACTED]',
-          reason: 'Medications must be redacted before push');
-
-      // Non-sensitive fields pass through
-      expect(pushed['name'], 'Alice Smith',
-          reason: 'Non-sensitive field should pass through unmasked');
+      expect(pushed['diagnosis'], 'Hypertension Stage 2',
+          reason: 'Pushed payload must carry real values, not [REDACTED]');
+      expect(pushed['ssn'], '123-45-6789',
+          reason: 'Pushed payload must carry real values, not [REDACTED]');
+      expect(pushed['blood_type'], 'O-negative',
+          reason: 'Pushed payload must carry real values, not [REDACTED]');
+      expect(pushed['medications'], 'Lisinopril 10mg',
+          reason: 'Pushed payload must carry real values, not [REDACTED]');
+      expect(pushed['name'], 'Alice Smith');
 
       engine.dispose();
     });
@@ -565,10 +571,17 @@ void main() {
     });
 
     test(
-        '10. De-identification — sensitiveFields masking removes identifiers before sync',
+        '10. De-identification — sensitiveFields is telemetry-only; synced '
+        'payloads pass through intact (callers omit identifiers instead)',
         () async {
       // SEVERITY: CRITICAL
-      // COMPLIANCE: HIPAA
+      // COMPLIANCE: HIPAA / data integrity
+      //
+      // Prior to 0.1.8 the engine rewrote listed fields to the literal
+      // string '[REDACTED]' in the local store and the push — destroying
+      // the user's data. De-identification of a synced record is the
+      // caller's job (omit the fields); sensitiveFields only scrubs
+      // error/telemetry output.
 
       final remote = ConfigurableRemoteStore();
       final local = InMemoryLocalStore();
@@ -612,30 +625,18 @@ void main() {
       expect(remote.pushedPayloads, isNotEmpty);
       final pushed = remote.pushedPayloads.last;
 
-      // All 8 identifier fields must be redacted
-      for (final field in [
-        'first_name',
-        'last_name',
-        'ssn',
-        'dob',
-        'email',
-        'phone',
-        'address',
-        'medical_record_number',
-      ]) {
-        expect(pushed[field], '[REDACTED]',
-            reason: '$field must be de-identified before sync');
+      // Every field is pushed exactly as given — masking the push would
+      // permanently store '[REDACTED]' on the remote (data loss).
+      for (final entry in fullRecord.entries) {
+        expect(pushed[entry.key], entry.value,
+            reason: '${entry.key} must be pushed intact');
       }
 
-      // Non-identifier field survives
-      expect(pushed['department'], 'Cardiology',
-          reason: 'Non-identifier field should not be masked');
-
-      // Also verify local store received masked data (write masks before local upsert)
+      // Local store also keeps the real values.
       final localData = local.getData('patients', 'p1');
       expect(localData, isNotNull);
-      expect(localData!['ssn'], '[REDACTED]',
-          reason: 'Local store must also receive masked data');
+      expect(localData!['ssn'], '111-22-3333',
+          reason: 'Local store must keep the real value');
 
       engine.dispose();
     });
@@ -1889,10 +1890,17 @@ void main() {
     });
 
     test(
-        '44. Privilege escalation via payload — sensitiveFields strips unauthorized fields like isAdmin',
-        () async {
+        '44. Privilege escalation via payload — sensitiveFields is not an '
+        'authorization mechanism; enforcement is server-side', () async {
       // SEVERITY: CRITICAL
       // COMPLIANCE: OWASP, SOC2
+      //
+      // Client-side rewriting of privileged fields is not a security
+      // boundary — a malicious client simply doesn't run this code. The
+      // server (RLS / column grants / triggers) must reject privileged
+      // writes. The engine's job is to transmit the payload faithfully;
+      // prior to 0.1.8 it pushed '[REDACTED]' instead, corrupting data
+      // while providing no real protection.
 
       final remote = ConfigurableRemoteStore();
 
@@ -1921,16 +1929,13 @@ void main() {
       expect(remote.pushedPayloads, isNotEmpty);
       final pushed = remote.pushedPayloads.last;
 
-      // Privilege escalation fields must be redacted
-      expect(pushed['isAdmin'], '[REDACTED]',
-          reason: 'isAdmin must be redacted to prevent privilege escalation');
-      expect(pushed['role'], '[REDACTED]', reason: 'role must be redacted');
-      expect(pushed['permissions'], '[REDACTED]',
-          reason: 'permissions must be redacted');
-      expect(pushed['access_level'], '[REDACTED]',
-          reason: 'access_level must be redacted');
-
-      // Non-privileged fields pass through
+      // The payload is transmitted as given — rejecting the escalation is
+      // the server's responsibility, and this test pins that the client
+      // does not silently corrupt fields while pretending to enforce it.
+      expect(pushed['isAdmin'], true);
+      expect(pushed['role'], 'superadmin');
+      expect(pushed['permissions'], 'ALL');
+      expect(pushed['access_level'], 9999);
       expect(pushed['name'], 'Normal User');
 
       engine.dispose();
@@ -2528,10 +2533,13 @@ void main() {
     });
 
     test(
-        '56. Conflict with masked fields — sensitiveFields are masked before enqueue, conflict compares masked versions',
-        () async {
+        '56. Conflict with sensitiveFields — queue and conflict resolution '
+        'operate on real values (masking is telemetry-only)', () async {
       // SEVERITY: HIGH
-      // COMPLIANCE: PII Protection — sensitive fields never reach conflict resolver in cleartext
+      // COMPLIANCE: Data integrity — conflict resolution must compare the
+      // real local and remote versions; comparing '[REDACTED]' to real
+      // data (pre-0.1.8 behavior) resolves conflicts against corrupted
+      // input and can persist the corruption.
       final events = <SyncEvent>[];
       final local = InMemoryLocalStore();
       final queue = InMemoryQueueStore();
@@ -2558,15 +2566,15 @@ void main() {
         'credit_card': '4111111111111111',
       });
 
-      // Check the queued entry's payload — sensitive fields should be masked
+      // The queued entry carries the real payload — it is what the remote
+      // will eventually store.
       final pending = await queue.getPendingEntries('users', 'u1');
       expect(pending, isNotEmpty);
-      expect(pending.first.payload['ssn'], '[REDACTED]',
-          reason: 'SSN must be masked in queue payload');
-      expect(pending.first.payload['credit_card'], '[REDACTED]',
-          reason: 'Credit card must be masked in queue payload');
-      expect(pending.first.payload['name'], 'Alice',
-          reason: 'Non-sensitive fields must remain intact');
+      expect(pending.first.payload['ssn'], '123-45-6789',
+          reason: 'Queue payload must carry the real value');
+      expect(pending.first.payload['credit_card'], '4111111111111111',
+          reason: 'Queue payload must carry the real value');
+      expect(pending.first.payload['name'], 'Alice');
 
       // Now trigger conflict — the local version in the conflict event
       // should contain the masked payload
@@ -2588,11 +2596,12 @@ void main() {
       expect(conflicts, isNotEmpty);
 
       final conflict = conflicts.last;
-      // The local version in the conflict should have masked sensitive fields
-      expect(conflict.localVersion['ssn'], '[REDACTED]',
-          reason: 'SSN in conflict localVersion must be [REDACTED]');
-      expect(conflict.localVersion['credit_card'], '[REDACTED]',
-          reason: 'Credit card in conflict localVersion must be [REDACTED]');
+      // The conflict exposes the real local version so the resolver can
+      // make a correct decision.
+      expect(conflict.localVersion['ssn'], '123-45-6789',
+          reason: 'Conflict localVersion must carry the real value');
+      expect(conflict.localVersion['credit_card'], '4111111111111111',
+          reason: 'Conflict localVersion must carry the real value');
     });
   });
 
@@ -5224,10 +5233,15 @@ void main() {
     });
 
     test(
-        '120. M6 Privacy Controls — sensitiveFields masks health data before sync',
-        () async {
+        '120. M6 Privacy Controls — sensitiveFields scrubs telemetry only; '
+        'stored and synced health data stays intact', () async {
       // SEVERITY: CRITICAL
-      // COMPLIANCE: OWASP-M6, HIPAA, GDPR
+      // COMPLIANCE: OWASP-M6, HIPAA, GDPR / data integrity
+      //
+      // M6 privacy controls for this engine = PHI never leaks into error
+      // logs or events (see tests 4 and 23). The record itself must reach
+      // the local store and the remote unmodified — pre-0.1.8 the engine
+      // destroyed listed fields by persisting '[REDACTED]'.
       final local = InMemoryLocalStore();
       final queue = InMemoryQueueStore();
       final remote = ConfigurableRemoteStore();
@@ -5261,34 +5275,23 @@ void main() {
 
       await engine.write('health_records', 'hr1', healthData);
 
-      // Local store should have masked data
+      // Local store keeps the user's real health record.
       final stored = local.getData('health_records', 'hr1')!;
-      expect(stored['blood_type'], '[REDACTED]',
-          reason: 'blood_type must be masked');
-      expect(stored['diagnosis'], '[REDACTED]',
-          reason: 'diagnosis must be masked');
-      expect(stored['ssn'], '[REDACTED]', reason: 'SSN must be masked');
-      expect(stored['medication'], '[REDACTED]',
-          reason: 'medication must be masked');
-      expect(stored['hiv_status'], '[REDACTED]',
-          reason: 'HIV status must be masked');
+      for (final entry in healthData.entries) {
+        expect(stored[entry.key], entry.value,
+            reason: '${entry.key} must be stored intact');
+      }
 
-      // Non-sensitive fields should be preserved
-      expect(stored['patient_name'], 'John Doe',
-          reason: 'Non-sensitive fields should be preserved');
-      expect(stored['visit_date'], '2025-01-15');
-
-      // Queue entry should also be masked
+      // Queue and remote carry the real record too.
       final entry = queue.allEntries.firstWhere((e) => e.recordId == 'hr1');
-      expect(entry.payload['blood_type'], '[REDACTED]');
-      expect(entry.payload['diagnosis'], '[REDACTED]');
+      expect(entry.payload['blood_type'], 'O+');
+      expect(entry.payload['diagnosis'], 'Type 2 Diabetes');
 
-      // Remote should receive masked data
       expect(remote.pushedPayloads, isNotEmpty);
       final pushed = remote.pushedPayloads.last;
-      expect(pushed['blood_type'], '[REDACTED]',
-          reason: 'Remote must receive masked health data');
-      expect(pushed['ssn'], '[REDACTED]');
+      expect(pushed['blood_type'], 'O+',
+          reason: 'Remote must receive the real health data');
+      expect(pushed['ssn'], '123-45-6789');
 
       engine.dispose();
     });
@@ -5409,8 +5412,8 @@ void main() {
         tables: ['tasks'],
       );
 
-      // The engine provides PII masking (sensitiveFields) as a defense-in-depth
-      // measure, but does not encrypt data itself.
+      // The engine provides PII masking (sensitiveFields) for telemetry
+      // output only; it neither encrypts nor rewrites stored data.
       final maskedEngine = SyncEngine(
         local: InMemoryLocalStore(),
         remote: ConfigurableRemoteStore(),
@@ -5425,14 +5428,14 @@ void main() {
         'secret_data': 'should-be-masked',
       });
 
-      // PII masking is not encryption — it's irreversible redaction
-      // This is a stronger guarantee than encryption for certain compliance use cases
+      // sensitiveFields does not touch stored data — protecting data at
+      // rest is the LocalStore's job (e.g. an encrypted database), not a
+      // string substitution in the engine.
       expect(
         (maskedEngine.local as InMemoryLocalStore)
             .getData('tasks', 't1')!['secret_data'],
-        '[REDACTED]',
-        reason:
-            'sensitiveFields provides irreversible redaction (stronger than encryption for compliance)',
+        'should-be-masked',
+        reason: 'Stored data must not be rewritten by sensitiveFields',
       );
 
       engine.dispose();
@@ -5564,10 +5567,14 @@ void main() {
     });
 
     test(
-        '127. Data minimization — sensitiveFields masks unnecessary fields before sync push',
-        () async {
+        '127. Data minimization — achieved by omitting fields from the '
+        'payload; sensitiveFields must not corrupt what is synced', () async {
       // SEVERITY: HIGH
-      // COMPLIANCE: GDPR, HIPAA
+      // COMPLIANCE: GDPR, HIPAA / data integrity
+      //
+      // GDPR data minimization means the caller sends only the fields the
+      // server needs. Pushing '[REDACTED]' in place of a value (pre-0.1.8)
+      // is not minimization — the field still ships, just corrupted.
       final remote = ConfigurableRemoteStore();
       final queue = InMemoryQueueStore();
 
@@ -5599,29 +5606,18 @@ void main() {
 
       await engine.write('patients', 'p1', patientData);
 
-      // Data minimization: only necessary fields reach the remote
+      // The payload the caller chose to send reaches the remote intact.
       expect(remote.pushedPayloads, isNotEmpty);
       final pushed = remote.pushedPayloads.last;
+      for (final entry in patientData.entries) {
+        expect(pushed[entry.key], entry.value,
+            reason: '${entry.key} must be pushed intact');
+      }
 
-      // Sensitive fields are masked — minimizing data sent to remote
-      expect(pushed['ssn'], '[REDACTED]',
-          reason: 'GDPR data minimization: SSN must be redacted');
-      expect(pushed['date_of_birth'], '[REDACTED]',
-          reason: 'GDPR data minimization: DOB must be redacted');
-      expect(pushed['genetic_data'], '[REDACTED]',
-          reason: 'GDPR data minimization: genetic data must be redacted');
-      expect(pushed['biometric'], '[REDACTED]',
-          reason: 'GDPR data minimization: biometric data must be redacted');
-
-      // Non-sensitive operational fields are preserved
-      expect(pushed['name'], 'Jane Doe');
-      expect(pushed['appointment_date'], '2025-03-01');
-      expect(pushed['doctor'], 'Dr. Smith');
-
-      // Queue also stores only masked data
+      // Queue carries the real payload too.
       final entry = queue.allEntries.firstWhere((e) => e.recordId == 'p1');
-      expect(entry.payload['ssn'], '[REDACTED]',
-          reason: 'Queue must also store minimized data');
+      expect(entry.payload['ssn'], '987-65-4321',
+          reason: 'Queue payload must carry the real value');
 
       engine.dispose();
     });
@@ -6045,10 +6041,11 @@ void main() {
       engine.dispose();
     });
 
-    test('137. Patch with sensitiveFields masks values before queueing',
-        () async {
+    test(
+        '137. Patch with sensitiveFields queues and pushes real values '
+        '(masking is telemetry-only)', () async {
       // SEVERITY: CRITICAL
-      // COMPLIANCE: HIPAA
+      // COMPLIANCE: HIPAA / data integrity
       final queue = InMemoryQueueStore();
       final local = InMemoryLocalStore();
       final remote = ConfigurableRemoteStore();
@@ -6062,19 +6059,17 @@ void main() {
         config: const SyncConfig(sensitiveFields: ['diagnosis']),
       );
 
-      // Both write() and push() mask sensitive fields.
       await engine.write('patients', 'p-1', {
         'diagnosis': 'Hypertension',
         'department': 'Cardiology',
       });
 
-      // Check what was pushed to remote
-      expect(remote.pushedPayloads.last['diagnosis'], '[REDACTED]',
-          reason: 'Sensitive fields must be masked before push');
+      // Pushed and stored data carry the real values — masking applies
+      // only to error/telemetry output.
+      expect(remote.pushedPayloads.last['diagnosis'], 'Hypertension',
+          reason: 'Pushed payload must carry the real value');
       expect(remote.pushedPayloads.last['department'], 'Cardiology');
-
-      // Check what was stored locally
-      expect(local.getData('patients', 'p-1')!['diagnosis'], '[REDACTED]');
+      expect(local.getData('patients', 'p-1')!['diagnosis'], 'Hypertension');
 
       engine.dispose();
     });

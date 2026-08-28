@@ -260,7 +260,9 @@ void main() {
       engine.dispose();
     });
 
-    test('patch via write() respects PII masking via sensitiveFields',
+    test(
+        'write() with sensitiveFields preserves real values in store and push '
+        '(masking is telemetry-only — regression for 0.1.8 data corruption)',
         () async {
       final remote = TrackingRemoteStore();
       final local = InMemoryLocalStore();
@@ -274,18 +276,48 @@ void main() {
         config: const SyncConfig(sensitiveFields: ['email']),
       );
 
-      // Both write() and push() apply PII masking.
       await engine.write('profiles', 'p-1', {
         'email': 'new@email.com',
         'display_name': 'Updated',
       });
 
+      // Pushed payload carries the real values — masking the push would
+      // permanently store '[REDACTED]' on the remote (data loss).
       final call = remote.pushCalls.first;
-      expect(call.data['email'], '[REDACTED]');
+      expect(call.data['email'], 'new@email.com');
       expect(call.data['display_name'], 'Updated');
 
-      // Local store also receives masked data
-      expect(local.data['profiles:p-1']!['email'], '[REDACTED]');
+      // Local store keeps the real value too.
+      expect(local.data['profiles:p-1']!['email'], 'new@email.com');
+
+      engine.dispose();
+    });
+
+    test(
+        'push() with sensitiveFields enqueues the real payload '
+        '(regression for 0.1.8 data corruption via queued [REDACTED])',
+        () async {
+      final queue = InMemoryQueueStore();
+
+      final engine = SyncEngine(
+        local: InMemoryLocalStore(),
+        remote: TrackingRemoteStore(),
+        queue: queue,
+        timestamps: InMemoryTimestampStore(),
+        tables: ['logged_sets'],
+        config: const SyncConfig(sensitiveFields: ['weight_kg']),
+      );
+
+      await engine.push('logged_sets', 's-1', {
+        'weight_kg': 20.0,
+        'reps': 6,
+      });
+
+      final entry = queue.allEntries.single;
+      expect(entry.payload['weight_kg'], 20.0,
+          reason: 'Queued payload must carry the real value — a masked '
+              'payload is what the remote would permanently store');
+      expect(entry.payload['reps'], 6);
 
       engine.dispose();
     });
