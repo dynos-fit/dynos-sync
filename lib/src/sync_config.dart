@@ -13,6 +13,7 @@ class SyncConfig {
     this.onConflict,
     this.maxPayloadBytes = 1048576,
     this.maxBackoff = const Duration(seconds: 60),
+    this.isTransientError,
   }) : assert(
           conflictStrategy != ConflictStrategy.custom || onConflict != null,
           'onConflict callback is required when conflictStrategy is custom',
@@ -55,4 +56,16 @@ class SyncConfig {
 
   /// Maximum backoff duration between retries.
   final Duration maxBackoff;
+
+  /// Classifies a failed individual push as *transient* (transport down,
+  /// timeout, 5xx) so it is retried without consuming [maxRetries].
+  ///
+  /// When it returns `true` for the thrown error, `SyncEngine.drain`
+  /// keeps the entry's `retryCount` unchanged, schedules `nextRetryAt`
+  /// from that unchanged count, emits [SyncRetryScheduled] with the
+  /// error, does **not** call `onError` / emit [SyncError], never
+  /// poison-pills the entry, and stops the drain regardless of
+  /// [stopOnFirstError]. `null` (the default) or `false` is the 0.1.8
+  /// behaviour: every failure counts toward [maxRetries].
+  final bool Function(Object error)? isTransientError;
 }

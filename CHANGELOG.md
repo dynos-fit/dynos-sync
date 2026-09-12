@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.1.9 (2026-09-11)
+*   **Feature (offline durability)**: `SyncConfig.isTransientError` — an optional `bool Function(Object error)` classifier. When it returns `true` for a failed individual push, `SyncEngine.drain` no longer increments the entry's `retryCount`, schedules `nextRetryAt` from the unchanged count, emits `SyncRetryScheduled` (now carrying `error`), does not call `onError` or emit `SyncError`, never poison-pills the entry, and stops the drain regardless of `stopOnFirstError`. A week in airplane mode can no longer exhaust `maxRetries` and silently delete a pending write.
+*   `SyncPoisonPill` gains optional `error` / `stackTrace`; `SyncRetryScheduled` gains optional `error`. Both additive.
+*   Default behaviour is unchanged: with `isTransientError` unset (or returning `false`) every failure counts toward `maxRetries` exactly as in 0.1.8. `AuthExpiredException` is still handled before classification; `pushBatch` is untouched.
+*   Added `test/transient_retry_test.dart`.
+
 ## 0.1.8 (2026-08-28)
 *   **Fix (data corruption)**: `SyncEngine.write()` and `SyncEngine.push()` no longer apply `SyncConfig.sensitiveFields` masking to the payload that is persisted locally and queued for remote push. Any field listed in `sensitiveFields` was silently replaced with the literal string `'[REDACTED]'` in the local store (`write()` path) and in every pushed payload — permanently destroying the real values on the remote, or failing the push outright on non-text columns (e.g. `numeric`/`double precision` reject the string, leaving the queue stuck retrying). Masking now applies **only** where it was documented to: error contexts passed to `onError` and emitted sync events. Callers who need a field kept off the server entirely should omit it from the payload.
 *   Updated the three tests that asserted masked payloads were stored/pushed; added regression tests pinning real-value passthrough for both `write()` and `push()`.

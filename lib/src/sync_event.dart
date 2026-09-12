@@ -73,13 +73,26 @@ class SyncConflict extends SyncEvent {
   final ConflictStrategy strategyUsed;
 }
 
-/// Emitted when a sync entry exceeds its maximum retry count and is discarded.
+/// Emitted when a sync entry exceeds its maximum retry count and is
+/// discarded (never emitted for a transient failure — see
+/// `SyncConfig.isTransientError`).
 class SyncPoisonPill extends SyncEvent {
   /// Creates a [SyncPoisonPill] event.
-  const SyncPoisonPill({required super.timestamp, required this.entry});
+  const SyncPoisonPill({
+    required super.timestamp,
+    required this.entry,
+    this.error,
+    this.stackTrace,
+  });
 
   /// The sync entry that was permanently discarded.
   final SyncEntry entry;
+
+  /// The error that exhausted the retry budget, if the engine had one.
+  final Object? error;
+
+  /// Stack trace paired with [error].
+  final StackTrace? stackTrace;
 }
 
 /// Emitted when a failed sync entry is scheduled for a later retry.
@@ -89,6 +102,7 @@ class SyncRetryScheduled extends SyncEvent {
     required super.timestamp,
     required this.entry,
     required this.nextRetryAt,
+    this.error,
   });
 
   /// The sync entry that will be retried.
@@ -96,6 +110,9 @@ class SyncRetryScheduled extends SyncEvent {
 
   /// The scheduled time for the next retry attempt.
   final DateTime nextRetryAt;
+
+  /// The error that caused this retry to be scheduled, if any.
+  final Object? error;
 }
 
 /// Emitted when an unexpected error occurs during a sync operation.

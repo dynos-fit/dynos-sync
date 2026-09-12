@@ -278,6 +278,39 @@ class SyncEngine {
             ));
             return;
           } catch (e, st) {
+            // Classification happens here and only here: the pushBatch
+            // failure above is opaque (it falls through to this loop), and
+            // the AuthExpiredException clause above runs first, so an
+            // expired session is never classified. At most one call per
+            // entry per drain.
+            final transient = config.isTransientError?.call(e) ?? false;
+
+            if (transient) {
+              // Transport is down. Do not spend the retry budget, do not
+              // report through onError (it is the host's error funnel), do
+              // not poison-pill at any retryCount. Reschedule from the
+              // UNCHANGED retryCount and stop this drain: the remaining
+              // entries would only fail the same way, whatever
+              // stopOnFirstError says.
+              final backoffSeconds = math.min(
+                math.pow(2, entry.retryCount + 1).toInt(),
+                config.maxBackoff.inSeconds,
+              );
+              final nextRetry =
+                  DateTime.now().toUtc().add(Duration(seconds: backoffSeconds));
+
+              await queue.setNextRetryAt(entry.id, nextRetry);
+
+              _emit(SyncRetryScheduled(
+                timestamp: DateTime.now().toUtc(),
+                entry: entry,
+                nextRetryAt: nextRetry,
+                error: e,
+              ));
+
+              break;
+            }
+
             if (entry.retryCount >= config.maxRetries) {
               onError?.call(
                 e,
@@ -289,6 +322,8 @@ class SyncEngine {
               _emit(SyncPoisonPill(
                 timestamp: DateTime.now().toUtc(),
                 entry: entry.copyWith(payload: _maskPayload(entry.payload)),
+                error: e,
+                stackTrace: st,
               ));
               await queue.deleteEntry(entry.id);
             } else {
@@ -320,6 +355,7 @@ class SyncEngine {
                 timestamp: DateTime.now().toUtc(),
                 entry: entry,
                 nextRetryAt: nextRetry,
+                error: e,
               ));
 
               if (config.stopOnFirstError) break;
