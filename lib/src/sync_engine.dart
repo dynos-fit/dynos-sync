@@ -394,7 +394,7 @@ class SyncEngine {
 
         final localTime = await timestamps.get(table);
         if (remoteTime.isAfter(localTime)) {
-          pulls.add(_pullTable(table, localTime));
+          pulls.add(_pullTable(table, localTime, gateCursor: remoteTime));
         }
       }
 
@@ -415,10 +415,23 @@ class SyncEngine {
   }
 
   /// Pull a single table's changes since [since].
-  Future<void> _pullTable(String table, DateTime since) async {
+  ///
+  /// [gateCursor] is the per-table remote timestamp the sync gate used to
+  /// decide this pull was needed. On an empty pull it is written as the table
+  /// watermark (guarded monotonically against [since]) so an empty table is
+  /// skipped next cycle instead of being re-queried forever. Never derived
+  /// from the device wall clock.
+  Future<void> _pullTable(
+    String table,
+    DateTime since, {
+    DateTime? gateCursor,
+  }) async {
     try {
       final rows = await remote.pullSince(table, since);
       if (rows.isEmpty) {
+        if (gateCursor != null && gateCursor.isAfter(since)) {
+          await timestamps.set(table, gateCursor);
+        }
         _emit(SyncPullComplete(
           timestamp: DateTime.now().toUtc(),
           table: table,
