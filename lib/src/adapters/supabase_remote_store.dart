@@ -4,10 +4,56 @@ import '../sync_exceptions.dart';
 import '../sync_operation.dart';
 import '../sync_entry.dart';
 
+/// Fetches one pull page: [limit] rows starting at [offset], or the whole
+/// window when [limit] is null.
+typedef PullPageFetcher = Future<List<Map<String, dynamic>>> Function(
+    int offset, int? limit);
+
+/// Fetches the complete pull window in ascending `updated_at`, `id` order.
+///
+/// Public so a host store that overrides `pullSince` with its own filters,
+/// RLS scoping or decryption can reuse this paging loop instead of duplicating
+/// it — a second copy is a second place to fix a truncation bug.
+///
+/// When [pageSize] is null the window is fetched with a single unbounded
+/// query. When set, pages are fetched until a short page ends the loop — on
+/// the assumption that the server serves full pages; keep [pageSize] at or
+/// below the API's max-rows setting so a server-side cap is not mistaken for
+/// the end of the window.
+///
+/// Throws [SyncRemoteException] if a full page repeats its predecessor: an
+/// offset-ignoring or range-clamped server would otherwise loop forever.
+Future<List<Map<String, dynamic>>> fetchPullWindow(
+  int? pageSize,
+  PullPageFetcher fetch,
+) async {
+  if (pageSize == null) return fetch(0, null);
+  final rows = <Map<String, dynamic>>[];
+  var offset = 0;
+  var previousHead = '';
+  while (true) {
+    final page = await fetch(offset, pageSize);
+    rows.addAll(page);
+    if (page.length < pageSize) break;
+    final head = page.first.toString();
+    if (head == previousHead) {
+      throw SyncRemoteException(
+        message:
+            'pull window made no progress at offset $offset; '
+            'keep pullPageSize at or below the API max-rows setting',
+      );
+    }
+    previousHead = head;
+    offset += pageSize;
+  }
+  return rows;
+}
+
 /// [RemoteStore] implementation using Supabase Postgrest.
 ///
 /// Pushes records via `.upsert()` / `.update()` / `.delete()` and pulls via
-/// `.select().gt('updated_at', since)`.
+/// `.select().gt('updated_at', since)` — paged in ascending `updated_at`, `id`
+/// order when [SupabaseRemoteStore.pullPageSize] is set.
 ///
 /// ## Smart Sync Gate
 ///
@@ -27,12 +73,22 @@ class SupabaseRemoteStore implements RemoteStore {
   /// - [syncStatusTable]: Name of the sync status table (default: `sync_status`).
   /// - [tableTimestampKeys]: Maps table names to their `sync_status` column names.
   ///   Example: `{'tasks': 'tasks_at', 'notes': 'notes_at'}`.
+  /// - [pullPageSize]: Rows fetched per page during pulls. `null` (default)
+  ///   issues one unbounded query; when set, [pullSince] pages in ascending
+  ///   `updated_at`, `id` order until the window is exhausted. Keep it at or
+  ///   below the project's API max-rows setting: a server-side cap makes a
+  ///   truncated window look like a short final page, and the watermark then
+  ///   advances past rows that were never fetched.
   const SupabaseRemoteStore({
     required this.client,
     required this.userId,
     this.syncStatusTable = 'sync_status',
     this.tableTimestampKeys = const {},
-  });
+    this.pullPageSize,
+  }) : assert(
+          pullPageSize == null || pullPageSize > 0,
+          'pullPageSize must be positive',
+        );
 
   /// The Supabase client used for all remote operations.
   final SupabaseClient client;
@@ -46,6 +102,9 @@ class SupabaseRemoteStore implements RemoteStore {
 
   /// Maps synced table names to their corresponding timestamp column in [syncStatusTable].
   final Map<String, String> tableTimestampKeys;
+
+  /// Rows fetched per page during pulls, or `null` for one unbounded query.
+  final int? pullPageSize;
 
   @override
   Future<void> push(
@@ -126,11 +185,20 @@ class SupabaseRemoteStore implements RemoteStore {
     DateTime since,
   ) async {
     try {
-      final rows = await client
-          .from(table)
-          .select()
-          .gt('updated_at', since.toIso8601String());
-      return List<Map<String, dynamic>>.from(rows);
+      final rows = await fetchPullWindow(pullPageSize, (offset, limit) async {
+        final query = client
+            .from(table)
+            .select()
+            .gt('updated_at', since.toIso8601String())
+            .order('updated_at', ascending: true)
+            .order('id', ascending: true);
+        return List<Map<String, dynamic>>.from(
+          limit == null
+              ? await query
+              : await query.range(offset, offset + limit - 1),
+        );
+      });
+      return rows;
     } on AuthException catch (e) {
       throw AuthExpiredException(e);
     } on FormatException catch (e) {
